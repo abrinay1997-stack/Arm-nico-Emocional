@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Armónico-Emocional | Bukoflow</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+      body {
+        font-family: 'Inter', sans-serif;
+      }
+      /* Add a simple fade-in animation for the results */
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .animate-fade-in {
+        animation: fadeIn 0.5s ease-out forwards;
+      }
+    </style>
+    <script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@18.2.0",
+    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.28.0",
+    "midi-writer-js": "https://esm.sh/midi-writer-js@2.1.4",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/"
+  }
+}
+</script>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="module">
+import React, { useState, useCallback, useEffect, useRef } from 'react';
+import ReactDOM from 'react-dom/client';
+import { GoogleGenAI, Type } from "@google/genai";
+import MidiWriter from 'midi-writer-js';
+
+// --- From constants.ts ---
+const EMOTIONS_LIST = [
+  "Felicidad", "Alegría desbordada", "Euforia", "Paz", "Serenidad", "Amor romántico", 
+  "Sensualidad", "Pasión ardiente", "Tristeza", "Melancolía", "Nostalgia", "Ira", 
+  "Enojo contenido", "Frustración", "Desesperación", "Ansiedad", "Miedo", "Terror", 
+  "Esperanza", "Inspiración", "Orgullo", "Triunfo", "Soledad", "Vacío", "Admiración", 
+  "Sorpresa", "Curiosidad", "Confusión", "Alivio", "Liberación", "Éxtasis", 
+  "Dolor físico", "Ternura", "Dulzura", "Misterio", "Suspenso", "Caos", "Orden", 
+  "Fluir", "Bloqueo", "Conexión", "Desconexión", "Claridad", "Confusión interna", 
+  "Anticipación", "Nerviosismo", "Calma antes de la tormenta", "Explosión emocional", 
+  "Resignación", "Aceptación"
+];
+const MUSIC_KEYS = [
+    "C", "C# / Db", "D", "D# / Eb", "E", "F", "F# / Gb", "G", "G# / Ab", "A", "A# / Bb", "B"
+];
+const MUSIC_SCALES = [
+    "Mayor (Jónico)", "Menor (Eólico)", "Menor Armónica", "Menor Melódica", "Dórico", "Frigio", "Lidio", "Mixolidio", "Locrio", "Pentatónica Mayor", "Pentatónica Menor", "Blues"
+];
+const CHORD_DURATIONS = {
+  '1': 'Redonda (Whole)',
+  '2': 'Blanca (Half)',
+  '4': 'Negra (Quarter)',
+  '8': 'Corchea (Eighth)',
+  '16': 'Semicorchea (Sixteenth)',
+};
+const STEPS = [
+    "Emociones",
+    "Parámetros",
+    "Resultado"
+];
+
+// --- From utils/midiGenerator.ts ---
+const NOTE_TO_MIDI_VAL = {
+  'C': 0, 'B#': 0,
+  'C#': 1, 'Db': 1,
+  'D': 2,
+  'D#': 3, 'Eb': 3,
+  'E': 4, 'Fb': 4,
+  'F': 5, 'E#': 5,
+  'F#': 6, 'Gb': 6,
+  'G': 7,
+  'G#': 8, 'Ab': 8,
+  'A': 9,
+  'A#': 10, 'Bb': 10,
+  'B': 11, 'Cb': 11,
+};
+const getVoicing = (notes, baseOctave = 3) => {
+    if (!notes || notes.length === 0) return [];
+    const midiToNoteMap = new Map();
+    const notesWithMidi = notes
+      .map(name => name.trim())
+      .map(name => ({ name, midi: NOTE_TO_MIDI_VAL[name] }))
+      .filter(item => item.midi !== undefined);
+    if (notesWithMidi.length === 0) return [];
+    notesWithMidi.forEach(n => midiToNoteMap.set(n.midi, n.name));
+    const sortedMidiValues = [...new Set(notesWithMidi.map(n => n.midi))].sort((a, b) => a - b);
+    const rootNoteName = notes[0].trim();
+    const rootMidiValue = NOTE_TO_MIDI_VAL[rootNoteName];
+    if (rootMidiValue === undefined) return [];
+    const rootIndex = sortedMidiValues.indexOf(rootMidiValue);
+    if (rootIndex === -1) return [];
+    const arrangedMidiValues = [
+      ...sortedMidiValues.slice(rootIndex),
+      ...sortedMidiValues.slice(0, rootIndex)
+    ];
+    let currentOctave = baseOctave;
+    let lastMidiValue = -1;
+    const voicedNotes = [];
+    arrangedMidiValues.forEach(midiValue => {
+        if (midiValue < lastMidiValue) {
+            currentOctave++;
+        }
+        const noteName = midiToNoteMap.get(midiValue);
+        voicedNotes.push(`${noteName}${currentOctave}`);
+        lastMidiValue = midiValue;
+    });
+    return voicedNotes;
+}
+const generateMidiDataUri = (progression, bpm, chordDuration) => {
+  try {
+    const track = new MidiWriter.Track();
+    track.setTempo(bpm);
+    track.addEvent(new MidiWriter.ProgramChangeEvent({ instrument: 1 }));
+    progression.forEach(item => {
+      const notes = item.notes.split(' - ');
+      const voicedNotes = getVoicing(notes);
+      if (voicedNotes.length > 0) {
+          track.addEvent(
+            new MidiWriter.NoteEvent({
+              pitch: voicedNotes,
+              duration: chordDuration,
+              velocity: 100
+            })
+          );
+      }
+    });
+    const write = new MidiWriter.Writer([track]);
+    const dataUri = write.dataUri();
+     if (!dataUri) {
+        throw new Error('La biblioteca MIDI generó un archivo vacío.');
+    }
+    return dataUri;
+  } catch (error) {
+    console.error("Error generating MIDI data URI:", error);
+    throw new Error(`Ocurrió un error al generar el archivo MIDI: ${error instanceof Error ? error.message : String(error)}`);
+  }
+};
+
+// --- From services/geminiService.ts ---
+const apiKey = "AIzaSyDmsXw8N2CsRYy3Vqh1JAvXY1dM104uEO8"; // <-- PEGA TU CLAVE DEL PASO 1 AQUÍ
+
+if (!apiKey || apiKey === "AIzaSyDmsXw8N2CsRYy3Vqh1JAvXY1dM104uEO8") {
+  const rootEl = document.getElementById('root');
+  if (rootEl) {
+    rootEl.innerHTML = `<div style="color: red; padding: 20px; font-family: sans-serif; text-align: center;">Error: La clave de API no ha sido configurada en el código. Abre index.html y reemplaza el texto del placeholder con tu clave.</div>`;
+  }
+  throw new Error("API_KEY is not set in the code");
+}
+const ai = new GoogleGenAI({ apiKey: apiKey });
+
+
+const responseSchema = {
+  type: Type.OBJECT,
+  properties: {
+    progression: {
+      type: Type.ARRAY,
+      description: "La progresión de acordes generada.",
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          chord: { type: Type.STRING, description: "El nombre del acorde, ej. Gmaj7." },
+          notes: { type: Type.STRING, description: "Las notas que componen el acorde, ej. G - B - D - F#." }
+        },
+        required: ["chord", "notes"]
+      }
+    },
+    analysis: {
+      type: Type.STRING,
+      description: "Un análisis conciso y preciso de por qué se eligió la progresión, conectando cada acorde o transición con la mezcla emocional solicitada. Debe ser breve y directo."
+    },
+  },
+  required: ["progression", "analysis"],
+};
+const generateChordProgression = async (emotions, keyAndScale, bpm, numChords) => {
+  const prompt = `
+    Eres "Armónico-Emocional | Bukoflow", una IA experta en composición y teoría musical con un profundo conocimiento de la psicología de la música. Tu propósito principal es generar una progresión de acordes que capture la esencia de una mezcla compleja de emociones humanas.
+    La solicitud del usuario es la siguiente:
+    - Emociones (en orden de prioridad, de la más a la menos dominante): ${emotions.join(", ")}
+    - Tonalidad y escala: ${keyAndScale}
+    - Tempo (BPM): ${bpm}
+    - Número de acordes: ${numChords}
+    Tu tarea es:
+    1. Generar una progresión de exactamente ${numChords} acordes que represente musicalmente la mezcla y prioridad de las emociones solicitadas.
+    2. Para cada acorde, especifica su nombre (ej. Gmaj7) y las notas que lo componen (ej. G - B - D - F#).
+    3. Proporcionar un análisis conciso y preciso, explicando brevemente el "por qué" de tus elecciones armónicas. Conecta cada acorde y transición directamente con los sentimientos solicitados. Sé directo y evita texto innecesario.
+    4. Responde únicamente con un objeto JSON que se ajuste al esquema proporcionado. No incluyas texto introductorio, saludos, ni nada fuera del formato JSON.
+  `;
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-pro",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: responseSchema,
+        thinkingConfig: {
+          thinkingBudget: 32768,
+        },
+      },
+    });
+    const jsonText = response.text.trim();
+    const result = JSON.parse(jsonText);
+    if (result && Array.isArray(result.progression) && typeof result.analysis === 'string') {
+        return result;
+    } else {
+        throw new Error("Invalid JSON structure received from API.");
+    }
+  } catch (error) {
+    console.error("Error calling Gemini API:", error);
+    throw new Error("No se pudo generar la progresión. Por favor, inténtelo de nuevo.");
+  }
+};
+
+// --- From components/Loader.tsx ---
+const Loader = () => {
+  return React.createElement('div', { className: "flex flex-col items-center justify-center space-y-4" },
+    React.createElement('div', { className: "w-16 h-16 border-4 border-dashed rounded-full animate-spin border-indigo-500" }),
+    React.createElement('h3', { className: "text-lg font-semibold text-white" }, "Componiendo..."),
+    React.createElement('p', { className: "text-gray-400 text-sm" }, "Bukoflow está en modo de pensamiento profundo para tu solicitud compleja.")
+  );
+};
+
+// --- From components/Stepper.tsx ---
+const Stepper = ({ steps, currentStep }) => {
+  return React.createElement('nav', { 'aria-label': "Progress" },
+    React.createElement('ol', { role: "list", className: "flex items-center justify-center" },
+      steps.map((step, stepIdx) => {
+        let statusIndicator;
+        if (stepIdx < currentStep) {
+          statusIndicator = React.createElement(React.Fragment, null,
+            React.createElement('div', { className: "absolute inset-0 flex items-center", 'aria-hidden': "true" },
+              React.createElement('div', { className: "h-0.5 w-full bg-indigo-600" })
+            ),
+            React.createElement('div', { className: "relative flex h-8 w-8 items-center justify-center rounded-full bg-indigo-600 hover:bg-indigo-900" },
+              React.createElement('svg', { className: "h-5 w-5 text-white", viewBox: "0 0 20 20", fill: "currentColor", 'aria-hidden': "true" },
+                React.createElement('path', { fillRule: "evenodd", d: "M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.052-.143z", clipRule: "evenodd" })
+              )
+            )
+          );
+        } else if (stepIdx === currentStep) {
+          statusIndicator = React.createElement(React.Fragment, null,
+            React.createElement('div', { className: "absolute inset-0 flex items-center", 'aria-hidden': "true" },
+              React.createElement('div', { className: "h-0.5 w-full bg-gray-700" })
+            ),
+            React.createElement('div', { className: "relative flex h-8 w-8 items-center justify-center rounded-full border-2 border-indigo-600 bg-gray-800" },
+              React.createElement('span', { className: "h-2.5 w-2.5 rounded-full bg-indigo-600", 'aria-hidden': "true" })
+            )
+          );
+        } else {
+          statusIndicator = React.createElement(React.Fragment, null,
+            React.createElement('div', { className: "absolute inset-0 flex items-center", 'aria-hidden': "true" },
+              React.createElement('div', { className: "h-0.5 w-full bg-gray-700" })
+            ),
+            React.createElement('div', { className: "relative flex h-8 w-8 items-center justify-center rounded-full border-2 border-gray-600 bg-gray-800" })
+          );
+        }
+
+        return React.createElement('li', { key: step, className: `relative ${stepIdx !== steps.length - 1 ? 'pr-8 sm:pr-20' : ''}` },
+          statusIndicator,
+          React.createElement('span', { className: "absolute top-10 left-4 -translate-x-1/2 text-xs font-semibold text-gray-300 w-20 text-center" }, step)
+        );
+      })
+    )
+  );
+};
+
+// --- From components/EmotionSelector.tsx ---
+const EmotionSelector = ({ selectedEmotions, onToggleEmotion, onReorderEmotions, onNext }) => {
+  const canProceed = selectedEmotions.length > 0 && selectedEmotions.length <= 4;
+  const [draggingItem, setDraggingItem] = useState(null);
+  const dragOverItem = useRef(null);
+
+  const handleDragStart = (e, index) => {
+    setDraggingItem(index);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+  const handleDragEnter = (index) => {
+    dragOverItem.current = index;
+  };
+  const handleDragEnd = () => {
+    if (draggingItem !== null && dragOverItem.current !== null && draggingItem !== dragOverItem.current) {
+      const listCopy = [...selectedEmotions];
+      const draggingItemContent = listCopy.splice(draggingItem, 1)[0];
+      listCopy.splice(dragOverItem.current, 0, draggingItemContent);
+      onReorderEmotions(listCopy);
+    }
+    setDraggingItem(null);
+    dragOverItem.current = null;
+  };
+  const handleDragOver = (e) => {
+    e.preventDefault();
+  };
+  const selectedEmotionNames = selectedEmotions.map(e => e.name);
+
+  return React.createElement('div', { className: "w-full flex flex-col items-center" },
+    React.createElement('h2', { className: "text-2xl font-bold text-white mb-2" }, "Paso 1: Elige y Prioriza tus Emociones"),
+    React.createElement('p', { className: "text-gray-400 mb-6 text-center" }, "Selecciona de 1 a 4 emociones y ordénalas arrastrando. La de arriba será la dominante."),
+    React.createElement('div', { className: "w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8" },
+      React.createElement('div', { className: "flex flex-col" },
+        React.createElement('h3', { className: "text-lg font-semibold text-white mb-4 text-center md:text-left" }, "Emociones Seleccionadas (Prioridad)"),
+        React.createElement('div', { className: "bg-gray-800/50 rounded-lg border border-gray-700 p-4 min-h-[280px]" },
+          selectedEmotions.length > 0 ?
+            React.createElement('ul', { className: "space-y-3" },
+              selectedEmotions.map((emotion, index) =>
+                React.createElement('li', {
+                  key: emotion.id,
+                  draggable: true,
+                  onDragStart: (e) => handleDragStart(e, index),
+                  onDragEnter: () => handleDragEnter(index),
+                  onDragEnd: handleDragEnd,
+                  onDragOver: handleDragOver,
+                  className: `p-3 rounded-lg flex items-center justify-between cursor-move transition-all duration-300 ${draggingItem === index ? 'bg-indigo-800 scale-105 shadow-2xl' : 'bg-gray-700 shadow-md border border-gray-600'}`
+                },
+                  React.createElement('div', { className: "flex items-center" },
+                    React.createElement('span', { className: "text-indigo-400 font-bold text-lg mr-3 w-6 text-center" }, index + 1),
+                    React.createElement('span', { className: "text-white font-medium" }, emotion.name)
+                  ),
+                  React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-5 w-5 text-gray-400 flex-shrink-0", fill: "none", viewBox: "0 0 24 24", stroke: "currentColor" },
+                    React.createElement('path', { strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: "2", d: "M4 6h16M4 12h16m-7 6h7" })
+                  )
+                )
+              )
+            ) :
+            React.createElement('div', { className: "flex items-center justify-center h-full" },
+              React.createElement('p', { className: "text-gray-500" }, "Selecciona emociones de la lista...")
+            )
+        )
+      ),
+      React.createElement('div', null,
+        React.createElement('h3', { className: "text-lg font-semibold text-white mb-4 text-center md:text-left" }, "Lista de Emociones"),
+        React.createElement('div', { className: "w-full p-4 bg-gray-800/50 rounded-lg border border-gray-700 max-h-[280px] overflow-y-auto" },
+          React.createElement('div', { className: "flex flex-wrap gap-3 justify-center" },
+            EMOTIONS_LIST.map((emotion) => {
+              const isSelected = selectedEmotionNames.includes(emotion);
+              const isDisabled = !isSelected && selectedEmotions.length >= 4;
+              return React.createElement('button', {
+                key: emotion,
+                onClick: () => onToggleEmotion(emotion),
+                disabled: isDisabled,
+                className: `px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ${isSelected ? 'bg-indigo-600 text-white shadow-lg ring-2 ring-indigo-400' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'} ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`
+              }, emotion);
+            })
+          )
+        )
+      )
+    ),
+    React.createElement('div', { className: "w-full max-w-4xl mt-8 flex justify-end" },
+      React.createElement('button', {
+        onClick: onNext,
+        disabled: !canProceed,
+        className: "px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors duration-200"
+      }, "Siguiente")
+    )
+  );
+};
+
+
+// --- From components/ParametersForm.tsx ---
+const ParametersForm = ({ musicKey, musicScale, bpm, numChords, chordDuration, onParamChange, onBack, onGenerate }) => {
+  return React.createElement('div', { className: "w-full flex flex-col items-center" },
+    React.createElement('h2', { className: "text-2xl font-bold text-white mb-2" }, "Paso 2: Parámetros Musicales"),
+    React.createElement('p', { className: "text-gray-400 mb-6 text-center" }, "Define la tonalidad, el ritmo y la longitud de tu pieza."),
+    React.createElement('div', { className: "w-full max-w-md space-y-6" },
+      React.createElement('div', { className: "flex space-x-4" },
+        React.createElement('div', { className: "w-1/2" },
+          React.createElement('label', { htmlFor: "key", className: "block text-sm font-medium text-gray-300 mb-2" }, "Tonalidad"),
+          React.createElement('select', {
+            id: "key", value: musicKey, onChange: (e) => onParamChange('musicKey', e.target.value),
+            className: "w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-3 focus:ring-indigo-500 focus:border-indigo-500"
+          }, MUSIC_KEYS.map((k) => React.createElement('option', { key: k, value: k }, k)))
+        ),
+        React.createElement('div', { className: "w-1/2" },
+          React.createElement('label', { htmlFor: "scale", className: "block text-sm font-medium text-gray-300 mb-2" }, "Escala"),
+          React.createElement('select', {
+            id: "scale", value: musicScale, onChange: (e) => onParamChange('musicScale', e.target.value),
+            className: "w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-3 focus:ring-indigo-500 focus:border-indigo-500"
+          }, MUSIC_SCALES.map((s) => React.createElement('option', { key: s, value: s }, s)))
+        )
+      ),
+      React.createElement('div', { className: "flex space-x-4" },
+        React.createElement('div', { className: 'w-1/2' },
+          React.createElement('label', { htmlFor: "bpm", className: "block text-sm font-medium text-gray-300 mb-2" }, "Tempo (BPM)"),
+          React.createElement('input', {
+            type: "number", id: "bpm", value: bpm, onChange: (e) => onParamChange('bpm', parseInt(e.target.value, 10)),
+            min: "40", max: "220",
+            className: "w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-3 focus:ring-indigo-500 focus:border-indigo-500"
+          })
+        ),
+        React.createElement('div', { className: 'w-1/2' },
+          React.createElement('label', { htmlFor: "numChords", className: "block text-sm font-medium text-gray-300 mb-2" }, "Nº de Acordes"),
+          React.createElement('input', {
+            type: "number", id: "numChords", value: numChords, onChange: (e) => onParamChange('numChords', parseInt(e.target.value, 10)),
+            min: "2", max: "16",
+            className: "w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-3 focus:ring-indigo-500 focus:border-indigo-500"
+          })
+        )
+      ),
+      React.createElement('div', null,
+        React.createElement('label', { htmlFor: "chordDuration", className: "block text-sm font-medium text-gray-300 mb-2" }, "Duración por Acorde"),
+        React.createElement('select', {
+          id: "chordDuration", value: chordDuration, onChange: (e) => onParamChange('chordDuration', e.target.value),
+          className: "w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-3 focus:ring-indigo-500 focus:border-indigo-500"
+        }, Object.entries(CHORD_DURATIONS).map(([value, name]) => React.createElement('option', { key: value, value: value }, name)))
+      )
+    ),
+    React.createElement('div', { className: "w-full max-w-md mt-8 flex justify-between" },
+      React.createElement('button', {
+        onClick: onBack,
+        className: "px-6 py-3 bg-gray-600 text-white font-semibold rounded-lg shadow-md hover:bg-gray-700 transition-colors duration-200"
+      }, "Atrás"),
+      React.createElement('button', {
+        onClick: onGenerate,
+        className: "px-6 py-3 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 transition-colors duration-200"
+      }, "Generar Progresión")
+    )
+  );
+};
+
+// --- From components/ResultDisplay.tsx ---
+const ResultDisplay = ({ result, isLoading, error, bpm, chordDuration, onReset }) => {
+  const [midiDataUri, setMidiDataUri] = useState(null);
+  const [midiError, setMidiError] = useState(null);
+
+  useEffect(() => {
+    if (result) {
+      setMidiError(null);
+      try {
+        const uri = generateMidiDataUri(result.progression, bpm, chordDuration);
+        setMidiDataUri(uri);
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Un error desconocido ocurrió al generar el MIDI.';
+        console.error('Failed to generate MIDI file:', errorMessage);
+        setMidiError(errorMessage);
+        setMidiDataUri(null);
+      }
+    }
+  }, [result, bpm, chordDuration]);
+
+  const handleDragStart = (e) => {
+    if (midiDataUri) {
+      e.dataTransfer.setData('DownloadURL', `audio/midi:progression.mid:${midiDataUri}`);
+    }
+  };
+
+  if (isLoading) {
+    return React.createElement(Loader, null);
+  }
+
+  if (error) {
+    return React.createElement('div', { className: "text-center" },
+      React.createElement('h2', { className: "text-2xl font-bold text-red-500 mb-4" }, "Error"),
+      React.createElement('p', { className: "text-gray-300 mb-6" }, error),
+      React.createElement('button', {
+        onClick: onReset,
+        className: "px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition-colors duration-200"
+      }, "Empezar de Nuevo")
+    );
+  }
+
+  if (!result) {
+    return null;
+  }
+
+  return React.createElement('div', { className: "w-full max-w-4xl animate-fade-in" },
+    React.createElement('h2', { className: "text-3xl font-bold text-white mb-6 text-center" }, "Tu Progresión Armónico-Emocional"),
+    React.createElement('div', { className: "bg-gray-800/50 border border-gray-700 rounded-lg p-6 mb-6" },
+      React.createElement('div', { className: "flex justify-between items-start mb-4" },
+        React.createElement('h3', { className: "text-xl font-semibold text-indigo-400" }, "Progresión de Acordes"),
+        React.createElement('div', { className: "flex flex-col items-end" },
+          midiError && React.createElement('div', { className: "text-sm text-red-400 text-right mb-2 p-2 bg-red-900/20 border border-red-500/30 rounded-md" },
+            React.createElement('p', null, React.createElement('strong', null, "Error al generar MIDI:")),
+            React.createElement('p', null, midiError)
+          ),
+          midiDataUri && !midiError && React.createElement('div', { className: "flex items-center gap-4" },
+            React.createElement('a', {
+              href: midiDataUri,
+              download: "progression.mid",
+              title: "Descargar MIDI",
+              className: "text-gray-400 hover:text-white transition-colors"
+            },
+              React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-6 w-6", fill: "none", viewBox: "0 0 24 24", stroke: "currentColor" }, React.createElement('path', { strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: "2", d: "M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" }))
+            ),
+            React.createElement('div', {
+              draggable: true,
+              onDragStart: handleDragStart,
+              className: "cursor-grab active:cursor-grabbing",
+              title: "Arrastrar al DAW"
+            },
+              React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-8 w-8 text-indigo-400 hover:text-indigo-300", viewBox: "0 0 20 20", fill: "currentColor" },
+                React.createElement('path', { d: "M2.5 4A1.5 1.5 0 001 5.5V6h18v-.5A1.5 1.5 0 0017.5 4h-15zM19 8H1V6h18v2zM1 10h18v4H1v-4z" })
+              )
+            )
+          )
+        )
+      ),
+      React.createElement('div', { className: "flex flex-wrap gap-4 justify-center" },
+        result.progression.map((item, index) =>
+          React.createElement('div', { key: index, className: "bg-gray-900 p-4 rounded-lg text-center flex-grow min-w-[100px] shadow-md border border-gray-700" },
+            React.createElement('p', { className: "text-2xl font-mono text-green-300 tracking-wider" }, item.chord),
+            React.createElement('p', { className: "text-sm font-mono text-indigo-300 mt-1" }, item.notes)
+          )
+        )
+      )
+    ),
+    React.createElement('div', { className: "bg-gray-800/50 border border-gray-700 rounded-lg p-6" },
+      React.createElement('h3', { className: "text-xl font-semibold text-indigo-400 mb-3" }, "Análisis Armónico-Emocional"),
+      React.createElement('div', { className: "text-gray-300 leading-relaxed whitespace-pre-wrap space-y-4" },
+        result.analysis.split('\n').map((paragraph, index) =>
+          React.createElement('p', { key: index }, paragraph)
+        )
+      )
+    ),
+    React.createElement('div', { className: "mt-8 text-center" },
+      React.createElement('button', {
+        onClick: onReset,
+        className: "px-8 py-4 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition-all duration-200 transform hover:scale-105"
+      }, "Crear Otra Progresión")
+    )
+  );
+};
+
+// --- From App.tsx ---
+function App() {
+  const [currentStep, setCurrentStep] = useState(0);
+  const [selectedEmotions, setSelectedEmotions] = useState([]);
+  const [musicKey, setMusicKey] = useState(MUSIC_KEYS[0]);
+  const [musicScale, setMusicScale] = useState(MUSIC_SCALES[0]);
+  const [bpm, setBpm] = useState(120);
+  const [numChords, setNumChords] = useState(4);
+  const [chordDuration, setChordDuration] = useState('1');
+  const [isLoading, setIsLoading] = useState(false);
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState(null);
+
+  const handleSelectEmotion = useCallback((emotionName) => {
+    setSelectedEmotions(prev => {
+      const isSelected = prev.some(e => e.name === emotionName);
+      if (isSelected) {
+        return prev.filter(e => e.name !== emotionName);
+      } else {
+        if (prev.length < 4) {
+          return [...prev, { id: Date.now() + Math.random(), name: emotionName }];
+        }
+        return prev;
+      }
+    });
+  }, []);
+
+  const handleParamChange = useCallback((param, value) => {
+    if (param === 'musicKey') setMusicKey(value);
+    else if (param === 'musicScale') setMusicScale(value);
+    else if (param === 'bpm') setBpm(value);
+    else if (param === 'numChords') setNumChords(value);
+    else if (param === 'chordDuration') setChordDuration(value);
+  }, []);
+
+  const handleNext = () => {
+    setCurrentStep(prev => Math.min(prev + 1, STEPS.length - 1));
+  };
+
+  const handleBack = () => {
+    setCurrentStep(prev => Math.max(prev - 1, 0));
+  };
+
+  const handleReset = () => {
+    setCurrentStep(0);
+    setSelectedEmotions([]);
+    setMusicKey(MUSIC_KEYS[0]);
+    setMusicScale(MUSIC_SCALES[0]);
+    setBpm(120);
+    setNumChords(4);
+    setChordDuration('1');
+    setIsLoading(false);
+    setResult(null);
+    setError(null);
+  };
+
+  const handleGenerate = async () => {
+    setCurrentStep(2);
+    setIsLoading(true);
+    setError(null);
+    setResult(null);
+    const emotionNames = selectedEmotions.map(e => e.name);
+    const keyAndScale = `${musicKey} ${musicScale}`;
+    try {
+      const generatedResult = await generateChordProgression(emotionNames, keyAndScale, bpm, numChords);
+      setResult(generatedResult);
+    } catch (e) {
+      setError(e.message || "An unknown error occurred.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const renderCurrentStep = () => {
+    switch (currentStep) {
+      case 0:
+        return React.createElement(EmotionSelector, {
+          selectedEmotions: selectedEmotions,
+          onToggleEmotion: handleSelectEmotion,
+          onReorderEmotions: setSelectedEmotions,
+          onNext: handleNext
+        });
+      case 1:
+        return React.createElement(ParametersForm, {
+          musicKey: musicKey,
+          musicScale: musicScale,
+          bpm: bpm,
+          numChords: numChords,
+          chordDuration: chordDuration,
+          onParamChange: handleParamChange,
+          onBack: handleBack,
+          onGenerate: handleGenerate
+        });
+      case 2:
+        return React.createElement(ResultDisplay, { result: result, isLoading: isLoading, error: error, bpm: bpm, chordDuration: chordDuration, onReset: handleReset });
+      default:
+        return null;
+    }
+  };
+
+  return React.createElement('div', { className: "bg-gray-900 text-white min-h-screen flex flex-col items-center p-4 sm:p-8" },
+    React.createElement('header', { className: "text-center mb-8" },
+      React.createElement('h1', { className: "text-4xl sm:text-5xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-500" }, "Armónico-Emocional | Bukoflow"),
+      currentStep < 2 && React.createElement('p', { className: "mt-4 text-lg text-gray-400 max-w-2xl mx-auto" }, "Crea música a partir de tus sentimientos.")
+    ),
+    React.createElement('div', { className: "w-full max-w-4xl mb-12" },
+      React.createElement(Stepper, { steps: STEPS, currentStep: currentStep })
+    ),
+    React.createElement('main', { className: "w-full max-w-4xl flex-grow flex items-center justify-center p-4 sm:p-8 bg-gray-800 rounded-xl shadow-2xl border border-gray-700" },
+      renderCurrentStep()
+    ),
+    React.createElement('footer', { className: "mt-8 text-xs text-gray-500" },
+      React.createElement('p', null, "Powered by Bukoflow")
+    )
+  );
+}
+
+// --- From index.tsx ---
+const rootElement = document.getElementById('root');
+if (!rootElement) {
+  throw new Error("Could not find root element to mount to");
+}
+const root = ReactDOM.createRoot(rootElement);
+root.render(React.createElement(React.StrictMode, null, React.createElement(App, null)));
+    </script>
+</body>
+</html>
