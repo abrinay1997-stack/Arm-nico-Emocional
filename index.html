@@ -25,11 +25,11 @@
     <script type="importmap">
 {
   "imports": {
-    "react": "https://esm.sh/react@18.2.0",
-    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/client": "https://aistudiocdn.com/react-dom@^19.2.0/client",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
     "@google/genai": "https://aistudiocdn.com/@google/genai@^1.28.0",
     "midi-writer-js": "https://esm.sh/midi-writer-js@2.1.4",
-    "react/": "https://aistudiocdn.com/react@^19.2.0/",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/"
   }
 }
@@ -45,11 +45,11 @@ import MidiWriter from 'midi-writer-js';
 
 // --- From constants.ts ---
 const EMOTIONS_LIST = [
-"Felicidad", "Alegría desbordada", "Gozo", "Júbilo", "Regocijo", "Euforia", "Éxtasis", "Exaltación", "Plenitud", "Paz", "Serenidad", "Sosiego", "Quietud", "Calma", "Armonía", "Bienestar", "Satisfacción", "Claridad",
-"Amor", "Afecto", "Cariño", "Ternura", "Dulzura", "Compasión", "Empatía", "Conexión", "Intimidad", "Sensualidad", "Deseo", "Pasión ardiente", "Lujuria", "Tristeza", "Pena", "Melancolía", "Congoja", "Aflicción", "Nostalgia", "Desconsuelo", "Abatimiento", "Desesperación",
-"Molestia", "Irritación", "Enojo", "Enojo contenido", "Ira", "Rabia", "Furia", "Frustración", "Hastío", "Rencor", "Resentimiento", "Explosión emocional", "Inquietud", "Preocupación", "Nerviosismo", "Ansiedad", "Agobio", "Zozobra", "Temor", "Miedo", "Pavor", "Terror", "Pánico",
-"Esperanza", "Optimismo", "Inspiración", "Motivación", "Entusiasmo", "Determinación", "Confianza", "Orgullo", "Triunfo", "Soledad", "Aislamiento", "Desamparo", "Abandono", "Vacío", "Desconexión", "Alienación", "Desapego", "Interés", "Curiosidad", "Intriga", "Admiración", "Asombro", "Sorpresa", "Estupor", "Perplejidad", "Duda", "Confusión", "Confusión interna", "Anticipación", "Expectación", "Suspenso", "Misterio", "Calma antes de la tormenta", "Tensión", "Bloqueo", "Fluir", "Caos", "Desorden", "Orden", "Equilibrio",
-"Alivio", "Liberación", "Impotencia", "Resignación", "Apatía", "Indiferencia", "Aceptación", "Dolor físico", "Placer (físico)", "Excitación", "Vértigo", "Escalofrío", "Cansancio", "Fatiga", "Agotamiento"
+  "Felicidad", "Alegría desbordada", "Gozo", "Júbilo", "Regocijo", "Euforia", "Éxtasis", "Exaltación", "Plenitud", "Paz", "Serenidad", "Sosiego", "Quietud", "Calma", "Armonía", "Bienestar", "Satisfacción", "Claridad",
+  "Amor", "Afecto", "Cariño", "Ternura", "Dulzura", "Compasión", "Empatía", "Conexión", "Intimidad", "Sensualidad", "Deseo", "Pasión ardiente", "Lujuria", "Tristeza", "Pena", "Melancolía", "Congoja", "Aflicción", "Nostalgia", "Desconsuelo", "Abatimiento", "Desesperación",
+  "Molestia", "Irritación", "Enojo", "Enojo contenido", "Ira", "Rabia", "Furia", "Frustración", "Hastío", "Rencor", "Resentimiento", "Explosión emocional", "Inquietud", "Preocupación", "Nerviosismo", "Ansiedad", "Agobio", "Zozobra", "Temor", "Miedo", "Pavor", "Terror", "Pánico",
+  "Esperanza", "Optimismo", "Inspiración", "Motivación", "Entusiasmo", "Determinación", "Confianza", "Orgullo", "Triunfo", "Soledad", "Aislamiento", "Desamparo", "Abandono", "Vacío", "Desconexión", "Alienación", "Desapego", "Interés", "Curiosidad", "Intriga", "Admiración", "Asombro", "Sorpresa", "Estupor", "Perplejidad", "Duda", "Confusión", "Confusión interna", "Anticipación", "Expectación", "Suspenso", "Misterio", "Calma antes de la tormenta", "Tensión", "Bloqueo", "Fluir", "Caos", "Desorden", "Orden", "Equilibrio",
+  "Alivio", "Liberación", "Impotencia", "Resignación", "Apatía", "Indiferencia", "Aceptación", "Dolor físico", "Placer (físico)", "Excitación", "Vértigo", "Escalofrío", "Cansancio", "Fatiga", "Agotamiento"
 ];
 const MUSIC_KEYS = [
     "C", "C# / Db", "D", "D# / Eb", "E", "F", "F# / Gb", "G", "G# / Ab", "A", "A# / Bb", "B"
@@ -70,7 +70,7 @@ const STEPS = [
     "Resultado"
 ];
 
-// --- From utils/midiGenerator.ts ---
+// --- From utils/midiHelper.ts ---
 const NOTE_TO_MIDI_VAL = {
   'C': 0, 'B#': 0,
   'C#': 1, 'Db': 1,
@@ -116,28 +116,112 @@ const getVoicing = (notes, baseOctave = 3) => {
         lastMidiValue = midiValue;
     });
     return voicedNotes;
-}
-const generateMidiDataUri = (progression, bpm, chordDuration) => {
-  try {
-    const track = new MidiWriter.Track();
-    track.setTempo(bpm);
-    track.addEvent(new MidiWriter.ProgramChangeEvent({ instrument: 1 }));
-    progression.forEach(item => {
-      const notes = item.notes.split(' - ');
-      const voicedNotes = getVoicing(notes);
-      if (voicedNotes.length > 0) {
-          track.addEvent(
-            new MidiWriter.NoteEvent({
-              pitch: voicedNotes,
-              duration: chordDuration,
-              velocity: 100
-            })
-          );
-      }
+};
+
+// --- From utils/midiGenerator.ts ---
+const TICKS_PER_QUARTER = 128;
+const durationStringToTicks = (duration) => {
+    const beatsPerMeasure = 4;
+    const numBeats = beatsPerMeasure / parseInt(duration, 10);
+    return numBeats * TICKS_PER_QUARTER;
+};
+const applyRhythmToTrack = (track, progression, rhythmPattern, chordDuration) => {
+    const measureDurationInTicks = durationStringToTicks(chordDuration);
+    progression.forEach((item, measureIndex) => {
+        const notes = getVoicing(item.notes.split(' - '));
+        const measureStartTick = measureIndex * measureDurationInTicks;
+        if (notes.length === 0) return;
+        switch (rhythmPattern) {
+            case 'Arpegio Ascendente':
+            case 'Arpegio Descendente': {
+                const noteDurationTicks = measureDurationInTicks / notes.length;
+                const arpeggioNotes = rhythmPattern === 'Arpegio Ascendente' ? notes : [...notes].reverse();
+                arpeggioNotes.forEach((note, noteIndex) => {
+                    track.addEvent(new MidiWriter.NoteEvent({
+                        pitch: [note],
+                        startTick: measureStartTick + noteIndex * noteDurationTicks,
+                        duration: `T${Math.floor(noteDurationTicks)}`
+                    }));
+                });
+                break;
+            }
+            case 'Balada':
+                track.addEvent(new MidiWriter.NoteEvent({
+                    pitch: [notes[0]],
+                    startTick: measureStartTick,
+                    duration: '4'
+                }));
+                if (notes.length > 1) {
+                    track.addEvent(new MidiWriter.NoteEvent({
+                        pitch: notes.slice(1),
+                        startTick: measureStartTick + (2 * TICKS_PER_QUARTER),
+                        duration: '4'
+                    }));
+                }
+                break;
+            case 'Bloques':
+            default:
+                track.addEvent(new MidiWriter.NoteEvent({
+                    pitch: notes,
+                    startTick: measureStartTick,
+                    duration: chordDuration
+                }));
+                break;
+        }
     });
-    const write = new MidiWriter.Writer([track]);
+};
+const addLineToTrack = (track, line) => {
+    const timeStringToTicks = (time) => {
+        const parts = time.split(':').map(Number);
+        const [measure = 0, quarter = 0, sixteenth = 0] = parts;
+        const ticksPerMeasure = 4 * TICKS_PER_QUARTER;
+        const ticksPerSixteenth = TICKS_PER_QUARTER / 4;
+        return (measure * ticksPerMeasure) + (quarter * TICKS_PER_QUARTER) + (sixteenth * ticksPerSixteenth);
+    };
+    const convertToneDurationToMidi = (toneDuration) => {
+        if (toneDuration.endsWith('m')) {
+            return toneDuration.slice(0, -1);
+        }
+        let midiDuration = toneDuration.replace('n', '');
+        if (midiDuration.endsWith('.')) {
+            midiDuration = 'd' + midiDuration.slice(0, -1);
+        }
+        return midiDuration;
+    };
+    line.forEach(item => {
+        if (item.note && item.note.toLowerCase() !== 'rest') {
+             track.addEvent(new MidiWriter.NoteEvent({
+                pitch: [item.note],
+                startTick: timeStringToTicks(item.time),
+                duration: convertToneDurationToMidi(item.duration)
+            }));
+        }
+    });
+};
+const generateMidiDataUri = (progression, bpm, chordDuration, rhythmPattern, generatedLines) => {
+  try {
+    const chordTrack = new MidiWriter.Track();
+    chordTrack.setTempo(bpm);
+    chordTrack.addEvent(new MidiWriter.ProgramChangeEvent({ instrument: 1 }));
+    applyRhythmToTrack(chordTrack, progression, rhythmPattern, chordDuration);
+    const tracks = [chordTrack];
+    if (generatedLines.bass && generatedLines.bass.length > 0) {
+        const bassTrack = new MidiWriter.Track();
+        bassTrack.setTempo(bpm);
+        bassTrack.addEvent(new MidiWriter.ProgramChangeEvent({ instrument: 33 }));
+        addLineToTrack(bassTrack, generatedLines.bass);
+        tracks.push(bassTrack);
+    }
+    if (generatedLines.melody && generatedLines.melody.length > 0) {
+        const melodyTrack = new MidiWriter.Track();
+        melodyTrack.setTempo(bpm);
+        melodyTrack.addEvent(new MidiWriter.ProgramChangeEvent({ instrument: 74 }));
+        addLineToTrack(melodyTrack, generatedLines.melody);
+        tracks.push(melodyTrack);
+    }
+    const write = new MidiWriter.Writer(tracks);
     const dataUri = write.dataUri();
-     if (!dataUri) {
+    if (!dataUri) {
         throw new Error('La biblioteca MIDI generó un archivo vacío.');
     }
     return dataUri;
@@ -146,11 +230,28 @@ const generateMidiDataUri = (progression, bpm, chordDuration) => {
     throw new Error(`Ocurrió un error al generar el archivo MIDI: ${error instanceof Error ? error.message : String(error)}`);
   }
 };
+const generateSingleLineMidiDataUri = (line, bpm, instrument) => {
+    try {
+        const track = new MidiWriter.Track();
+        track.setTempo(bpm);
+        track.addEvent(new MidiWriter.ProgramChangeEvent({ instrument }));
+        addLineToTrack(track, line);
+        const write = new MidiWriter.Writer([track]);
+        const dataUri = write.dataUri();
+        if (!dataUri) {
+            throw new Error('La biblioteca MIDI generó un archivo vacío.');
+        }
+        return dataUri;
+    } catch (error) {
+        console.error("Error generating single line MIDI data URI:", error);
+        throw new Error(`Ocurrió un error al generar el archivo MIDI: ${error instanceof Error ? error.message : String(error)}`);
+    }
+};
 
 // --- From services/geminiService.ts ---
 const apiKey = "AIzaSyDmsXw8N2CsRYy3Vqh1JAvXY1dM104uEO8";
-const ai = new GoogleGenAI({ apiKey: apiKey });
-const responseSchema = {
+const ai = new GoogleGenAI({ apiKey });
+const chordProgressionSchema = {
   type: Type.OBJECT,
   properties: {
     progression: {
@@ -160,9 +261,10 @@ const responseSchema = {
         type: Type.OBJECT,
         properties: {
           chord: { type: Type.STRING, description: "El nombre del acorde, ej. Gmaj7." },
-          notes: { type: Type.STRING, description: "Las notas que componen el acorde, ej. G - B - D - F#." }
+          notes: { type: Type.STRING, description: "Las notas que componen el acorde, ej. G - B - D - F#." },
+          degree: { type: Type.STRING, description: "El grado del acorde en la tonalidad, ej. I, V, iv." }
         },
-        required: ["chord", "notes"]
+        required: ["chord", "notes", "degree"]
       }
     },
     analysis: {
@@ -171,6 +273,25 @@ const responseSchema = {
     },
   },
   required: ["progression", "analysis"],
+};
+const musicalLineSchema = {
+    type: Type.OBJECT,
+    properties: {
+        line: {
+            type: Type.ARRAY,
+            description: "La línea musical generada.",
+            items: {
+                type: Type.OBJECT,
+                properties: {
+                    note: { type: Type.STRING, description: "La nota con su octava, ej. C4, F#3. Usar 'rest' para silencios." },
+                    duration: { type: Type.STRING, description: "La duración en notación de Tone.js, ej. '4n', '8n', '1m'." },
+                    time: { type: Type.STRING, description: "El tiempo de inicio en formato de Tone.js 'compas:division:subdivision', ej. '0:0:0', '0:2:0'." }
+                },
+                required: ["note", "duration", "time"]
+            }
+        }
+    },
+    required: ["line"],
 };
 const generateChordProgression = async (emotions, keyAndScale, bpm, numChords) => {
   const prompt = `
@@ -181,10 +302,11 @@ const generateChordProgression = async (emotions, keyAndScale, bpm, numChords) =
     - Tempo (BPM): ${bpm}
     - Número de acordes: ${numChords}
     Tu tarea es:
-    1. Generar una progresión de exactamente ${numChords} acordes que represente y traduzca, con coherencia musical y emocional, la combinación y jerarquía de las emociones o sensaciones solicitadas. La progresión debe reflejar fielmente la intensidad, el carácter y la interacción entre dichas emociones, considerando los principios de psicología sensorial, percepción auditiva y teoría armónica aplicada.
-    2. Para cada acorde, especifica su nombre (ej. Gmaj7) y las notas que lo componen (ej. G - B - D - F#) y grado (ej. I - V - IV) Así como la escala y tonalidad general. 
-    3. Proporcionar un análisis conciso y preciso, explicando brevemente el "por qué" de tus elecciones armónicas. Conecta cada acorde y transición directamente con los sentimientos solicitados. Sé directo y evita texto innecesario.
-    4. Responde únicamente con un objeto JSON que se ajuste al esquema proporcionado. No incluyas texto introductorio, saludos, ni nada fuera del formato JSON.
+    1. Analizar la mezcla emocional y decidir el nivel de complejidad armónica (simple, normal, o complejo) que mejor las represente. Por ejemplo, emociones puras como 'Paz' podrían usar armonías simples, mientras que 'Confusión interna' podría requerir armonías más complejas e inesperadas.
+    2. Generar una progresión de exactamente ${numChords} acordes que represente la combinación de emociones solicitadas, utilizando la complejidad armónica que has determinado.
+    3. Para cada acorde, especifica su nombre (ej. Gmaj7), las notas que lo componen (ej. G - B - D - F#), y su grado en la tonalidad (ej. I, V, iv).
+    4. Proporcionar un análisis conciso y preciso, explicando el "por qué" de tus elecciones armónicas.
+    5. Responde únicamente con un objeto JSON que se ajuste al esquema proporcionado. No incluyas nada fuera del formato JSON.
   `;
   try {
     const response = await ai.models.generateContent({
@@ -192,10 +314,8 @@ const generateChordProgression = async (emotions, keyAndScale, bpm, numChords) =
       contents: prompt,
       config: {
         responseMimeType: "application/json",
-        responseSchema: responseSchema,
-        thinkingConfig: {
-          thinkingBudget: 32768,
-        },
+        responseSchema: chordProgressionSchema,
+        thinkingConfig: { thinkingBudget: 32768 },
       },
     });
     const jsonText = response.text.trim();
@@ -209,6 +329,92 @@ const generateChordProgression = async (emotions, keyAndScale, bpm, numChords) =
     console.error("Error calling Gemini API:", error);
     throw new Error("No se pudo generar la progresión. Por favor, inténtelo de nuevo.");
   }
+};
+const generateMusicalLine = async (progression, emotions, keyAndScale, bpm, lineType) => {
+    const typeInstructions = lineType === 'bass' ? `
+          **Tu Tarea:** Crear una línea de bajo **moderna, profesional y minimalista** que sirva como el fundamento rítmico y armónico de la pieza. El *groove* y el *espacio* son más importantes que la complejidad melódica. Piensa en cómo un productor de Billie Eilish, Justin Bieber o Bad Bunny usaría el bajo: como una fuerza rítmica que se *siente* tanto como se oye.
+          **Reglas de Producción Clave:**
+          1.  **"In the Pocket":** La línea de bajo debe estar perfectamente sincronizada con un bombo (kick drum) imaginario. El *groove* nace de esta interacción.
+          2.  **Minimalismo (Menos es Más):** No toques notas innecesarias. El silencio (espacio) es tu herramienta principal para crear tensión y gancho. Evita los "walking bass" tradicionales.
+          3.  **Sonido:** Piensa en texturas modernas: un *sub-bass* profundo, un *synth bass* pulsante, o un *808* con 'glide'.
+          **Traducción Emocional (Estilo Pop Moderno):**
+          *   **Para 'Tristeza', 'Paz', 'Nostalgia' (Estilo Billie Eilish, Ed Sheeran ballad):**
+              *   Usa notas **largas y sostenidas** (redondas, blancas) que anclen la armonía.
+              *   Piensa en un **Sub-bass** o un bajo eléctrico simple que marque la **nota fundamental** en el pulso \`1\` de cada compás (downbeat).
+              *   Movimiento melódico casi nulo. El *espacio* entre notas crea la sensación de calma o vacío.
+          *   **Para 'Alegría', 'Euforia', 'Triunfo' (Estilo Justin Timberlake, Harry Styles, Usher):**
+              *   Crea un **riff de bajo rítmico y pegadizo** (un motivo memorable).
+              *   Usa **síncopas** (corcheas y semicorcheas) que jueguen *alrededor* del bombo.
+              *   Los saltos de **octava** son perfectos para esto. La línea es bailable y tiene *confianza*.
+          *   **Para 'Tensión', 'Ansiedad', 'Confusión' (Estilo The Weeknd, Trap):**
+              *   Utiliza un **ostinato rítmico** (un patrón muy corto y repetitivo) en un registro grave.
+              *   Puede ser una **sola nota repetida** con un ritmo insistente (negras o corcheas constantes).
+              *   El **cromatismo** debe ser sutil: una nota de paso disonante justo antes de volver a la tónica para crear inquietud.
+          *   **Para 'Ritmo' (Estilo Bad Bunny, Reggaeton/Trap):**
+              *   El bajo es un **808 o Sub-bass** que sigue el patrón rítmico exacto de un bombo imaginario.
+              *   La "melodía" proviene de cambiar la nota fundamental con el acorde y usar *glides* (deslizamientos) entre notas clave.
+          **Resumen:** No quiero un bajo solista. Quiero un bajo de *productor*: minimalista, con un *groove* impecable, un sonido profundo y que sirva al 100% a la emoción y al ritmo de la canción, priorizando siempre la emoción.`
+        : `
+          **Tu Tarea:** Crear una **MELODÍA POP MODERNA (un "Topline")** que sea el gancho principal y el foco emocional de la pieza. La cadencia rítmica y la capacidad de ser pegajosa son tan importantes como las notas mismas. Piensa como un songwriter de élite escribiendo para Harry Styles, Billie Eilish o The Weeknd.
+          **Reglas de Producción Clave:**
+          1.  **El Gancho (Hook) lo es Todo:** La melodía es el hook. Debe ser memorable, simple y repetible (un "earworm"). Concéntrate en crear un motivo corto que se pueda quedar grabado al instante.
+          2.  **El Ritmo es el Rey:** La melodía debe tener su propio flow rítmico. Usa síncopas, frases que crucen la barra de compás y un fraseo que se sienta moderno, casi como si tuviera influencia del R&B o el Hip-Hop.
+          3.  **Economía de Notas:** No uses notas innecesarias. Una melodía con 3 o 4 notas bien puestas es más fuerte que una carrera melódica compleja. El espacio (silencios) entre frases es vital.
+          **Traducción Emocional (Estilo "Topline" Moderno):**
+          *   **Para 'Esperanza', 'Alegría', 'Triunfo' (Estilo Harry Styles, Justin Timberlake):**
+              *   Usa motivos rítmicos y ascendentes que creen anticipación.
+              *   Los saltos amplios (ej. octavas) deben usarse estratégicamente para "lanzar" el estribillo y crear euforia.
+              *   La melodía es brillante, clara y se apoya fuertemente en el beat.
+          *   **Para 'Tristeza', 'Nostalgia', 'Intimidad' (Estilo Billie Eilish, Ed Sheeran):**
+              *   Usa melodías minimalistas, casi habladas o susurradas.
+              *   Movimiento por grados conjuntos (notas cercanas) y contornos descendentes al final de las frases.
+              *   El foco está en el espacio y las notas largas y sostenidas que dejan sentir la emoción. La melodía debe sentirse cercana y vulnerable.
+          *   **Para 'Tensión', 'Ansiedad', 'Confusión' (Estilo Billie Eilish, The Weeknd):**
+              *   Usa frases cortas y repetitivas (ostinatos melódicos) en un rango de notas pequeño.
+              *   Crea una sensación circular o "atrapada", donde la melodía no parece resolver.
+              *   Ritmos insistentes y angulares que chocan sutilmente con la armonía para generar inquietud.
+          *   **Para 'Ritmo', 'Vibe', 'Seducción' (Estilo Bad Bunny, Bieber R&B):**
+              *   La melodía es casi percusiva. El flow rítmico lo es todo.
+              *   Usa síncopas constantes y melismas (varias notas en una sílaba) muy cortos y estilizados.
+              *   La melodía se entrelaza inseparablemente con el patrón del hi-hat y el bombo imaginarios.
+          **Resumen:** No quiero una melodía clásica. Quiero un **Topline moderno** que pueda encabezar las listas de éxitos. Debe ser rítmico, minimalista cuando sea necesario, increíblemente pegajoso y servir al 100% a la producción vocal moderna, respetando y priorizando siempre la emoción.`;
+    const progressionString = progression.map(p => `${p.degree} (${p.chord})`).join(' | ');
+    const prompt = `
+        Eres un compositor y productor de pop moderno de élite, con una profunda sensibilidad para conectar música y emoción. Dada una progresión de acordes y un contexto emocional, tu tarea es componer una línea musical profesional, actual y conmovedora.
+        Contexto:
+        - Progresión de Acordes: ${progressionString}
+        - Tonalidad: ${keyAndScale}
+        - Emociones a expresar (en orden de importancia): ${emotions.join(", ")}
+        - Tempo (BPM): ${bpm}
+        - Tipo de línea a generar: ${lineType}
+        Instrucciones:
+        1. Asimila profundamente la mezcla de emociones. La primera emoción de la lista es la dominante.
+        2. ${typeInstructions}
+        3. La línea debe durar exactamente lo mismo que la progresión de acordes, que tiene ${progression.length} compases. Asume un compás de 4/4 para cada acorde.
+        4. Genera una secuencia de eventos de nota en formato JSON. Para cada evento, especifica la nota (con octava, ej. C3, F#4), su duración en notación de Tone.js ('4n' para negra, '8n' para corchea, '1m' para un compás entero, etc.), y su tiempo de inicio absoluto en formato 'compas:division:subdivision' (ej. '0:0:0', '0:2:0').
+        5. La línea debe ser musical y coherente, evitando la aleatoriedad. Debe sentirse como si un humano la hubiera compuesto y producido.
+        6. Responde únicamente con un objeto JSON que se ajuste al esquema proporcionado. No incluyas absolutamente nada fuera del formato JSON.
+    `;
+    try {
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-pro",
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: musicalLineSchema
+            },
+        });
+        const jsonText = response.text.trim();
+        const result = JSON.parse(jsonText);
+        if (result && Array.isArray(result.line)) {
+            return result.line;
+        } else {
+            throw new Error(`Invalid JSON structure for ${lineType} line.`);
+        }
+    } catch (error) {
+        console.error(`Error calling Gemini API for ${lineType} line:`, error);
+        throw new Error(`No se pudo generar la línea de ${lineType}. Inténtalo de nuevo.`);
+    }
 };
 
 // --- From components/Loader.tsx ---
@@ -224,10 +430,9 @@ const Loader = () => {
 const Stepper = ({ steps, currentStep }) => {
   return React.createElement('nav', { 'aria-label': "Progress" },
     React.createElement('ol', { role: "list", className: "flex items-center justify-center" },
-      steps.map((step, stepIdx) => {
-        let statusIndicator;
-        if (stepIdx < currentStep) {
-          statusIndicator = React.createElement(React.Fragment, null,
+      steps.map((step, stepIdx) => React.createElement('li', { key: step, className: `relative ${stepIdx !== steps.length - 1 ? 'pr-8 sm:pr-20' : ''}` },
+        stepIdx < currentStep ?
+          React.createElement(React.Fragment, null,
             React.createElement('div', { className: "absolute inset-0 flex items-center", 'aria-hidden': "true" },
               React.createElement('div', { className: "h-0.5 w-full bg-indigo-600" })
             ),
@@ -236,30 +441,24 @@ const Stepper = ({ steps, currentStep }) => {
                 React.createElement('path', { fillRule: "evenodd", d: "M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.052-.143z", clipRule: "evenodd" })
               )
             )
-          );
-        } else if (stepIdx === currentStep) {
-          statusIndicator = React.createElement(React.Fragment, null,
+          ) :
+        stepIdx === currentStep ?
+          React.createElement(React.Fragment, null,
             React.createElement('div', { className: "absolute inset-0 flex items-center", 'aria-hidden': "true" },
               React.createElement('div', { className: "h-0.5 w-full bg-gray-700" })
             ),
             React.createElement('div', { className: "relative flex h-8 w-8 items-center justify-center rounded-full border-2 border-indigo-600 bg-gray-800" },
               React.createElement('span', { className: "h-2.5 w-2.5 rounded-full bg-indigo-600", 'aria-hidden': "true" })
             )
-          );
-        } else {
-          statusIndicator = React.createElement(React.Fragment, null,
+          ) :
+          React.createElement(React.Fragment, null,
             React.createElement('div', { className: "absolute inset-0 flex items-center", 'aria-hidden': "true" },
               React.createElement('div', { className: "h-0.5 w-full bg-gray-700" })
             ),
             React.createElement('div', { className: "relative flex h-8 w-8 items-center justify-center rounded-full border-2 border-gray-600 bg-gray-800" })
-          );
-        }
-
-        return React.createElement('li', { key: step, className: `relative ${stepIdx !== steps.length - 1 ? 'pr-8 sm:pr-20' : ''}` },
-          statusIndicator,
-          React.createElement('span', { className: "absolute top-10 left-4 -translate-x-1/2 text-xs font-semibold text-gray-300 w-20 text-center" }, step)
-        );
-      })
+          ),
+        React.createElement('span', { className: "absolute top-10 left-4 -translate-x-1/2 text-xs font-semibold text-gray-300 w-20 text-center" }, step)
+      ))
     )
   );
 };
@@ -269,7 +468,6 @@ const EmotionSelector = ({ selectedEmotions, onToggleEmotion, onReorderEmotions,
   const canProceed = selectedEmotions.length > 0 && selectedEmotions.length <= 4;
   const [draggingItem, setDraggingItem] = useState(null);
   const dragOverItem = useRef(null);
-
   const handleDragStart = (e, index) => {
     setDraggingItem(index);
     e.dataTransfer.effectAllowed = 'move';
@@ -287,9 +485,7 @@ const EmotionSelector = ({ selectedEmotions, onToggleEmotion, onReorderEmotions,
     setDraggingItem(null);
     dragOverItem.current = null;
   };
-  const handleDragOver = (e) => {
-    e.preventDefault();
-  };
+  const handleDragOver = (e) => e.preventDefault();
   const selectedEmotionNames = selectedEmotions.map(e => e.name);
 
   return React.createElement('div', { className: "w-full flex flex-col items-center" },
@@ -354,7 +550,6 @@ const EmotionSelector = ({ selectedEmotions, onToggleEmotion, onReorderEmotions,
   );
 };
 
-
 // --- From components/ParametersForm.tsx ---
 const ParametersForm = ({ musicKey, musicScale, bpm, numChords, chordDuration, onParamChange, onBack, onGenerate }) => {
   return React.createElement('div', { className: "w-full flex flex-col items-center" },
@@ -364,68 +559,52 @@ const ParametersForm = ({ musicKey, musicScale, bpm, numChords, chordDuration, o
       React.createElement('div', { className: "flex space-x-4" },
         React.createElement('div', { className: "w-1/2" },
           React.createElement('label', { htmlFor: "key", className: "block text-sm font-medium text-gray-300 mb-2" }, "Tonalidad"),
-          React.createElement('select', {
-            id: "key", value: musicKey, onChange: (e) => onParamChange('musicKey', e.target.value),
-            className: "w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-3 focus:ring-indigo-500 focus:border-indigo-500"
-          }, MUSIC_KEYS.map((k) => React.createElement('option', { key: k, value: k }, k)))
+          React.createElement('select', { id: "key", value: musicKey, onChange: (e) => onParamChange('musicKey', e.target.value), className: "w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-3 focus:ring-indigo-500 focus:border-indigo-500" },
+            MUSIC_KEYS.map((k) => React.createElement('option', { key: k, value: k }, k))
+          )
         ),
         React.createElement('div', { className: "w-1/2" },
           React.createElement('label', { htmlFor: "scale", className: "block text-sm font-medium text-gray-300 mb-2" }, "Escala"),
-          React.createElement('select', {
-            id: "scale", value: musicScale, onChange: (e) => onParamChange('musicScale', e.target.value),
-            className: "w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-3 focus:ring-indigo-500 focus:border-indigo-500"
-          }, MUSIC_SCALES.map((s) => React.createElement('option', { key: s, value: s }, s)))
+          React.createElement('select', { id: "scale", value: musicScale, onChange: (e) => onParamChange('musicScale', e.target.value), className: "w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-3 focus:ring-indigo-500 focus:border-indigo-500" },
+            MUSIC_SCALES.map((s) => React.createElement('option', { key: s, value: s }, s))
+          )
         )
       ),
       React.createElement('div', { className: "flex space-x-4" },
         React.createElement('div', { className: 'w-1/2' },
           React.createElement('label', { htmlFor: "bpm", className: "block text-sm font-medium text-gray-300 mb-2" }, "Tempo (BPM)"),
-          React.createElement('input', {
-            type: "number", id: "bpm", value: bpm, onChange: (e) => onParamChange('bpm', parseInt(e.target.value, 10)),
-            min: "40", max: "220",
-            className: "w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-3 focus:ring-indigo-500 focus:border-indigo-500"
-          })
+          React.createElement('input', { type: "number", id: "bpm", value: bpm, onChange: (e) => onParamChange('bpm', parseInt(e.target.value, 10)), min: "40", max: "220", className: "w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-3 focus:ring-indigo-500 focus:border-indigo-500" })
         ),
         React.createElement('div', { className: 'w-1/2' },
           React.createElement('label', { htmlFor: "numChords", className: "block text-sm font-medium text-gray-300 mb-2" }, "Nº de Acordes"),
-          React.createElement('input', {
-            type: "number", id: "numChords", value: numChords, onChange: (e) => onParamChange('numChords', parseInt(e.target.value, 10)),
-            min: "2", max: "16",
-            className: "w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-3 focus:ring-indigo-500 focus:border-indigo-500"
-          })
+          React.createElement('input', { type: "number", id: "numChords", value: numChords, onChange: (e) => onParamChange('numChords', parseInt(e.target.value, 10)), min: "2", max: "16", className: "w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-3 focus:ring-indigo-500 focus:border-indigo-500" })
         )
       ),
       React.createElement('div', null,
         React.createElement('label', { htmlFor: "chordDuration", className: "block text-sm font-medium text-gray-300 mb-2" }, "Duración por Acorde"),
-        React.createElement('select', {
-          id: "chordDuration", value: chordDuration, onChange: (e) => onParamChange('chordDuration', e.target.value),
-          className: "w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-3 focus:ring-indigo-500 focus:border-indigo-500"
-        }, Object.entries(CHORD_DURATIONS).map(([value, name]) => React.createElement('option', { key: value, value: value }, name)))
+        React.createElement('select', { id: "chordDuration", value: chordDuration, onChange: (e) => onParamChange('chordDuration', e.target.value), className: "w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-3 focus:ring-indigo-500 focus:border-indigo-500" },
+          Object.entries(CHORD_DURATIONS).map(([value, name]) => React.createElement('option', { key: value, value: value }, name))
+        )
       )
     ),
     React.createElement('div', { className: "w-full max-w-md mt-8 flex justify-between" },
-      React.createElement('button', {
-        onClick: onBack,
-        className: "px-6 py-3 bg-gray-600 text-white font-semibold rounded-lg shadow-md hover:bg-gray-700 transition-colors duration-200"
-      }, "Atrás"),
-      React.createElement('button', {
-        onClick: onGenerate,
-        className: "px-6 py-3 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 transition-colors duration-200"
-      }, "Generar Progresión")
+      React.createElement('button', { onClick: onBack, className: "px-6 py-3 bg-gray-600 text-white font-semibold rounded-lg shadow-md hover:bg-gray-700 transition-colors duration-200" }, "Atrás"),
+      React.createElement('button', { onClick: onGenerate, className: "px-6 py-3 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 transition-colors duration-200" }, "Generar Progresión")
     )
   );
 };
 
 // --- From components/ResultDisplay.tsx ---
-const ResultDisplay = ({ result, isLoading, error, bpm, chordDuration, onReset }) => {
+const ResultDisplay = ({ result, isLoading, error, bpm, chordDuration, onReset, musicKey, musicScale, onGenerateLine, generatedLines, isGeneratingLine }) => {
   const [midiDataUri, setMidiDataUri] = useState(null);
+  const [bassMidiUri, setBassMidiUri] = useState(null);
+  const [melodyMidiUri, setMelodyMidiUri] = useState(null);
   const [midiError, setMidiError] = useState(null);
-
   useEffect(() => {
     if (result) {
       setMidiError(null);
       try {
-        const uri = generateMidiDataUri(result.progression, bpm, chordDuration);
+        const uri = generateMidiDataUri(result.progression, bpm, chordDuration, 'Bloques', generatedLines);
         setMidiDataUri(uri);
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Un error desconocido ocurrió al generar el MIDI.';
@@ -434,93 +613,151 @@ const ResultDisplay = ({ result, isLoading, error, bpm, chordDuration, onReset }
         setMidiDataUri(null);
       }
     }
-  }, [result, bpm, chordDuration]);
-
+  }, [result, bpm, chordDuration, generatedLines]);
+  useEffect(() => {
+    if (generatedLines.bass) {
+      try {
+        const uri = generateSingleLineMidiDataUri(generatedLines.bass, bpm, 33);
+        setBassMidiUri(uri);
+      } catch (err) {
+        console.error('Failed to generate BASS MIDI file:', err);
+        setBassMidiUri(null);
+      }
+    } else {
+        setBassMidiUri(null);
+    }
+  }, [generatedLines.bass, bpm]);
+  useEffect(() => {
+    if (generatedLines.melody) {
+      try {
+        const uri = generateSingleLineMidiDataUri(generatedLines.melody, bpm, 74);
+        setMelodyMidiUri(uri);
+      } catch (err) {
+        console.error('Failed to generate MELODY MIDI file:', err);
+        setMelodyMidiUri(null);
+      }
+    } else {
+        setMelodyMidiUri(null);
+    }
+  }, [generatedLines.melody, bpm]);
   const handleDragStart = (e) => {
     if (midiDataUri) {
       e.dataTransfer.setData('DownloadURL', `audio/midi:progression.mid:${midiDataUri}`);
     }
   };
-
-  if (isLoading) {
-    return React.createElement(Loader, null);
-  }
-
-  if (error) {
-    return React.createElement('div', { className: "text-center" },
-      React.createElement('h2', { className: "text-2xl font-bold text-red-500 mb-4" }, "Error"),
-      React.createElement('p', { className: "text-gray-300 mb-6" }, error),
-      React.createElement('button', {
-        onClick: onReset,
-        className: "px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition-colors duration-200"
-      }, "Empezar de Nuevo")
-    );
-  }
-
-  if (!result) {
-    return null;
-  }
-
+  if (isLoading) return React.createElement(Loader);
+  if (error) return React.createElement('div', { className: "text-center" },
+    React.createElement('h2', { className: "text-2xl font-bold text-red-500 mb-4" }, "Error"),
+    React.createElement('p', { className: "text-gray-300 mb-6" }, error),
+    React.createElement('button', { onClick: onReset, className: "px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700" }, "Empezar de Nuevo")
+  );
+  if (!result) return null;
   return React.createElement('div', { className: "w-full max-w-4xl animate-fade-in" },
     React.createElement('h2', { className: "text-3xl font-bold text-white mb-6 text-center" }, "Tu Progresión Armónico-Emocional"),
     React.createElement('div', { className: "bg-gray-800/50 border border-gray-700 rounded-lg p-6 mb-6" },
       React.createElement('div', { className: "flex justify-between items-start mb-4" },
-        React.createElement('h3', { className: "text-xl font-semibold text-indigo-400" }, "Progresión de Acordes"),
+        React.createElement('div', null,
+          React.createElement('h3', { className: "text-xl font-semibold text-indigo-400" }, "Progresión de Acordes"),
+          React.createElement('p', { className: "text-sm text-gray-400 mt-1" }, `${musicKey} ${musicScale}`)
+        ),
         React.createElement('div', { className: "flex flex-col items-end" },
-          midiError && React.createElement('div', { className: "text-sm text-red-400 text-right mb-2 p-2 bg-red-900/20 border border-red-500/30 rounded-md" },
-            React.createElement('p', null, React.createElement('strong', null, "Error al generar MIDI:")),
-            React.createElement('p', null, midiError)
-          ),
-          midiDataUri && !midiError && React.createElement('div', { className: "flex items-center gap-4" },
-            React.createElement('a', {
-              href: midiDataUri,
-              download: "progression.mid",
-              title: "Descargar MIDI",
-              className: "text-gray-400 hover:text-white transition-colors"
-            },
-              React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-6 w-6", fill: "none", viewBox: "0 0 24 24", stroke: "currentColor" }, React.createElement('path', { strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: "2", d: "M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" }))
-            ),
-            React.createElement('div', {
-              draggable: true,
-              onDragStart: handleDragStart,
-              className: "cursor-grab active:cursor-grabbing",
-              title: "Arrastrar al DAW"
-            },
-              React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-8 w-8 text-indigo-400 hover:text-indigo-300", viewBox: "0 0 20 20", fill: "currentColor" },
-                React.createElement('path', { d: "M2.5 4A1.5 1.5 0 001 5.5V6h18v-.5A1.5 1.5 0 0017.5 4h-15zM19 8H1V6h18v2zM1 10h18v4H1v-4z" })
+          midiError && React.createElement('div', { className: "text-sm text-red-400 text-right mb-2 p-2 bg-red-900/20 border border-red-500/30 rounded-md" }, React.createElement('strong', null, "Error MIDI:"), ` ${midiError}`),
+          midiDataUri && !midiError &&
+            React.createElement('div', { className: "flex items-center gap-4" },
+              React.createElement('span', { className: "text-xs text-gray-500" }, "Todo (MIDI)"),
+              React.createElement('a', { href: midiDataUri, download: "progression.mid", title: "Descargar MIDI Completo", className: "text-gray-400 hover:text-white transition-colors" },
+                React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-6 w-6", fill: "none", viewBox: "0 0 24 24", stroke: "currentColor" }, React.createElement('path', { strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: "2", d: "M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" }))
+              ),
+              React.createElement('div', { draggable: true, onDragStart: handleDragStart, className: "cursor-grab active:cursor-grabbing", title: "Arrastrar al DAW" },
+                React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-8 w-8 text-indigo-400 hover:text-indigo-300", viewBox: "0 0 20 20", fill: "currentColor" }, React.createElement('path', { d: "M2.5 4A1.5 1.5 0 001 5.5V6h18v-.5A1.5 1.5 0 0017.5 4h-15zM19 8H1V6h18v2zM1 10h18v4H1v-4z" }))
               )
             )
-          )
         )
       ),
       React.createElement('div', { className: "flex flex-wrap gap-4 justify-center" },
         result.progression.map((item, index) =>
-          React.createElement('div', { key: index, className: "bg-gray-900 p-4 rounded-lg text-center flex-grow min-w-[100px] shadow-md border border-gray-700" },
+          React.createElement('div', { key: index, className: "bg-gray-900 p-4 rounded-lg text-center flex-grow flex flex-col justify-center min-w-[100px] shadow-md border border-gray-700" },
             React.createElement('p', { className: "text-2xl font-mono text-green-300 tracking-wider" }, item.chord),
+            React.createElement('p', { className: "text-lg font-mono text-gray-400" }, item.degree),
             React.createElement('p', { className: "text-sm font-mono text-indigo-300 mt-1" }, item.notes)
           )
+        )
+      )
+    ),
+    React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 gap-6 mb-6" },
+      React.createElement('div', { className: "bg-gray-800/50 border border-gray-700 rounded-lg p-6 flex flex-col" },
+        React.createElement('h3', { className: "text-xl font-semibold text-indigo-400 mb-3" }, "Línea de Bajo"),
+        generatedLines.bass ? React.createElement('p', { className: "text-sm text-gray-400 flex-grow" }, "Línea de bajo generada y lista para descargar.") : React.createElement('p', { className: "text-sm text-gray-400 flex-grow" }, "Genera una línea de bajo para complementar tu progresión."),
+        React.createElement('div', { className: "flex gap-2 mt-4" },
+          React.createElement('button', { onClick: () => onGenerateLine('bass'), disabled: isGeneratingLine, className: "px-4 py-2 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 disabled:bg-gray-600 w-full" },
+            isGeneratingLine ? 'Generando...' : 'Generar Bajo'
+          ),
+          bassMidiUri && React.createElement('a', { href: bassMidiUri, download: "bass.mid", title: "Descargar solo Bajo (MIDI)", className: "flex-shrink-0 px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 disabled:bg-gray-600" }, "MIDI")
+        )
+      ),
+      React.createElement('div', { className: "bg-gray-800/50 border border-gray-700 rounded-lg p-6 flex flex-col" },
+        React.createElement('h3', { className: "text-xl font-semibold text-indigo-400 mb-3" }, "Melodía"),
+        generatedLines.melody ? React.createElement('p', { className: "text-sm text-gray-400 flex-grow" }, "Melodía generada y lista para descargar.") : React.createElement('p', { className: "text-sm text-gray-400 flex-grow" }, "Genera una melodía que encaje con la armonía y emoción."),
+        React.createElement('div', { className: "flex gap-2 mt-4" },
+          React.createElement('button', { onClick: () => onGenerateLine('melody'), disabled: isGeneratingLine, className: "px-4 py-2 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 disabled:bg-gray-600 w-full" },
+            isGeneratingLine ? 'Generando...' : 'Generar Melodía'
+          ),
+          melodyMidiUri && React.createElement('a', { href: melodyMidiUri, download: "melody.mid", title: "Descargar solo Melodía (MIDI)", className: "flex-shrink-0 px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 disabled:bg-gray-600" }, "MIDI")
         )
       )
     ),
     React.createElement('div', { className: "bg-gray-800/50 border border-gray-700 rounded-lg p-6" },
       React.createElement('h3', { className: "text-xl font-semibold text-indigo-400 mb-3" }, "Análisis Armónico-Emocional"),
       React.createElement('div', { className: "text-gray-300 leading-relaxed whitespace-pre-wrap space-y-4" },
-        result.analysis.split('\n').map((paragraph, index) =>
-          React.createElement('p', { key: index }, paragraph)
-        )
+        result.analysis.split('\n').map((p, i) => React.createElement('p', { key: i }, p))
       )
     ),
     React.createElement('div', { className: "mt-8 text-center" },
-      React.createElement('button', {
-        onClick: onReset,
-        className: "px-8 py-4 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition-all duration-200 transform hover:scale-105"
-      }, "Crear Otra Progresión")
+      React.createElement('button', { onClick: onReset, className: "px-8 py-4 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition-all duration-200 transform hover:scale-105" }, "Crear Otra Progresión")
+    )
+  );
+};
+
+// --- From components/LoginScreen.tsx ---
+const LoginScreen = ({ onLoginSuccess }) => {
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const ACCESS_KEYS = ['bukoflow'];
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (ACCESS_KEYS.includes(password)) {
+      setError('');
+      onLoginSuccess();
+    } else {
+      setError('Clave de acceso incorrecta.');
+    }
+  };
+  return React.createElement('div', { className: "bg-gray-900 text-white min-h-screen flex flex-col items-center justify-center p-4" },
+    React.createElement('div', { className: "text-center max-w-md w-full" },
+      React.createElement('h1', { className: "text-4xl sm:text-5xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-500" }, "Armónico-Emocional IA"),
+      React.createElement('p', { className: "mt-4 text-lg text-gray-400" }, "Bienvenido. Por favor, introduce la clave de acceso para continuar."),
+      React.createElement('form', { onSubmit: handleSubmit, className: "mt-8 space-y-6" },
+        React.createElement('div', { className: "rounded-md shadow-sm" },
+          React.createElement('div', null,
+            React.createElement('label', { htmlFor: "password-input", className: "sr-only" }, "Clave de acceso"),
+            React.createElement('input', { id: "password-input", name: "password", type: "password", value: password, onChange: (e) => setPassword(e.target.value), required: true, className: "appearance-none relative block w-full px-4 py-3 border border-gray-600 bg-gray-800 placeholder-gray-500 text-white rounded-lg focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm", placeholder: "Clave de acceso" })
+          )
+        ),
+        error && React.createElement('p', { className: "text-red-400 text-sm text-center" }, error),
+        React.createElement('div', null,
+          React.createElement('button', { type: "submit", className: "group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 focus:ring-offset-gray-900 transition-colors" }, "Continuar")
+        )
+      ),
+      React.createElement('footer', { className: "mt-12 text-xs text-gray-500" },
+        React.createElement('p', null, "Powered by Bukoflow")
+      )
     )
   );
 };
 
 // --- From App.tsx ---
 function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [selectedEmotions, setSelectedEmotions] = useState([]);
   const [musicKey, setMusicKey] = useState(MUSIC_KEYS[0]);
@@ -529,39 +766,36 @@ function App() {
   const [numChords, setNumChords] = useState(4);
   const [chordDuration, setChordDuration] = useState('1');
   const [isLoading, setIsLoading] = useState(false);
+  const [isGeneratingLine, setIsGeneratingLine] = useState(false);
   const [result, setResult] = useState(null);
+  const [generatedLines, setGeneratedLines] = useState({ bass: null, melody: null });
   const [error, setError] = useState(null);
-
+  const handleLoginSuccess = () => setIsAuthenticated(true);
   const handleSelectEmotion = useCallback((emotionName) => {
     setSelectedEmotions(prev => {
       const isSelected = prev.some(e => e.name === emotionName);
       if (isSelected) {
         return prev.filter(e => e.name !== emotionName);
-      } else {
-        if (prev.length < 4) {
-          return [...prev, { id: Date.now() + Math.random(), name: emotionName }];
-        }
-        return prev;
+      } else if (prev.length < 4) {
+        return [...prev, { id: Date.now() + Math.random(), name: emotionName }];
       }
+      return prev;
     });
   }, []);
-
   const handleParamChange = useCallback((param, value) => {
-    if (param === 'musicKey') setMusicKey(value);
-    else if (param === 'musicScale') setMusicScale(value);
-    else if (param === 'bpm') setBpm(value);
-    else if (param === 'numChords') setNumChords(value);
-    else if (param === 'chordDuration') setChordDuration(value);
+    const paramSetterMap = {
+      musicKey: setMusicKey,
+      musicScale: setMusicScale,
+      bpm: setBpm,
+      numChords: setNumChords,
+      chordDuration: setChordDuration,
+    };
+    if (paramSetterMap[param]) {
+      paramSetterMap[param](value);
+    }
   }, []);
-
-  const handleNext = () => {
-    setCurrentStep(prev => Math.min(prev + 1, STEPS.length - 1));
-  };
-
-  const handleBack = () => {
-    setCurrentStep(prev => Math.max(prev - 1, 0));
-  };
-
+  const handleNext = () => setCurrentStep(prev => Math.min(prev + 1, STEPS.length - 1));
+  const handleBack = () => setCurrentStep(prev => Math.max(prev - 1, 0));
   const handleReset = () => {
     setCurrentStep(0);
     setSelectedEmotions([]);
@@ -571,15 +805,17 @@ function App() {
     setNumChords(4);
     setChordDuration('1');
     setIsLoading(false);
+    setIsGeneratingLine(false);
     setResult(null);
+    setGeneratedLines({ bass: null, melody: null });
     setError(null);
   };
-
   const handleGenerate = async () => {
     setCurrentStep(2);
     setIsLoading(true);
     setError(null);
     setResult(null);
+    setGeneratedLines({ bass: null, melody: null });
     const emotionNames = selectedEmotions.map(e => e.name);
     const keyAndScale = `${musicKey} ${musicScale}`;
     try {
@@ -591,37 +827,43 @@ function App() {
       setIsLoading(false);
     }
   };
-
+  const handleGenerateLine = async (lineType) => {
+      if (!result) return;
+      setIsGeneratingLine(true);
+      setError(null);
+      try {
+        const line = await generateMusicalLine(
+            result.progression,
+            selectedEmotions.map(e => e.name),
+            `${musicKey} ${musicScale}`,
+            bpm,
+            lineType
+        );
+        setGeneratedLines(prev => ({ ...prev, [lineType]: line }));
+      } catch (e) {
+        setError(e.message || `Failed to generate ${lineType} line.`);
+      } finally {
+        setIsGeneratingLine(false);
+      }
+  };
   const renderCurrentStep = () => {
     switch (currentStep) {
       case 0:
-        return React.createElement(EmotionSelector, {
-          selectedEmotions: selectedEmotions,
-          onToggleEmotion: handleSelectEmotion,
-          onReorderEmotions: setSelectedEmotions,
-          onNext: handleNext
-        });
+        return React.createElement(EmotionSelector, { selectedEmotions, onToggleEmotion: handleSelectEmotion, onReorderEmotions: setSelectedEmotions, onNext: handleNext });
       case 1:
-        return React.createElement(ParametersForm, {
-          musicKey: musicKey,
-          musicScale: musicScale,
-          bpm: bpm,
-          numChords: numChords,
-          chordDuration: chordDuration,
-          onParamChange: handleParamChange,
-          onBack: handleBack,
-          onGenerate: handleGenerate
-        });
+        return React.createElement(ParametersForm, { musicKey, musicScale, bpm, numChords, chordDuration, onParamChange: handleParamChange, onBack: handleBack, onGenerate: handleGenerate });
       case 2:
-        return React.createElement(ResultDisplay, { result: result, isLoading: isLoading, error: error, bpm: bpm, chordDuration: chordDuration, onReset: handleReset });
+        return React.createElement(ResultDisplay, { result, isLoading, error, bpm, chordDuration, onReset: handleReset, musicKey, musicScale, onGenerateLine: handleGenerateLine, generatedLines, isGeneratingLine });
       default:
         return null;
     }
   };
-
+  if (!isAuthenticated) {
+    return React.createElement(LoginScreen, { onLoginSuccess: handleLoginSuccess });
+  }
   return React.createElement('div', { className: "bg-gray-900 text-white min-h-screen flex flex-col items-center p-4 sm:p-8" },
     React.createElement('header', { className: "text-center mb-8" },
-      React.createElement('h1', { className: "text-4xl sm:text-5xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-500" }, "Armónico-Emocional IA | BukoFlow"),
+      React.createElement('h1', { className: "text-4xl sm:text-5xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-500" }, "Armónico-Emocional | Bukoflow"),
       currentStep < 2 && React.createElement('p', { className: "mt-4 text-lg text-gray-400 max-w-2xl mx-auto" }, "Crea música a partir de tus sentimientos.")
     ),
     React.createElement('div', { className: "w-full max-w-4xl mb-12" },
@@ -636,16 +878,11 @@ function App() {
   );
 }
 
-// --- From index.tsx ---
+// --- From index.tsx (Render Call) ---
 const rootElement = document.getElementById('root');
-if (!rootElement) {
-  throw new Error("Could not find root element to mount to");
-}
 const root = ReactDOM.createRoot(rootElement);
-root.render(React.createElement(React.StrictMode, null, React.createElement(App, null)));
+root.render(React.createElement(React.StrictMode, null, React.createElement(App)));
+
     </script>
 </body>
 </html>
-
-
-
