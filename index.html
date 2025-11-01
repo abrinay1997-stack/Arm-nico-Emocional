@@ -722,7 +722,7 @@ const ResultDisplay = ({ result, isLoading, error, bpm, chordDuration, onReset, 
 const LoginScreen = ({ onLoginSuccess }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const ACCESS_KEYS = ['abrinay', 'richardlove', 'alexking', 'avalon'];
+  const ACCESS_KEYS = ['abrinay', 'richardlove', 'alexking', 'avalon', 'kays'];
   const handleSubmit = (e) => {
     e.preventDefault();
     if (ACCESS_KEYS.includes(password)) {
@@ -886,5 +886,6 @@ root.render(React.createElement(React.StrictMode, null, React.createElement(App)
     </script>
 </body>
 </html>
+
 
 
