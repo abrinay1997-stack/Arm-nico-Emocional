@@ -152,18 +152,8 @@ const generateMidiDataUri = (progression, bpm, chordDuration) => {
 };
 
 // --- From services/geminiService.ts ---
-const apiKey = "AIzaSyDmsXw8N2CsRYy3Vqh1JAvXY1dM104uEO8"; // <-- PEGA TU CLAVE DEL PASO 1 AQUÍ
-
-if (!apiKey || apiKey === "AIzaSyDmsXw8N2CsRYy3Vqh1JAvXY1dM104uEO8") {
-  const rootEl = document.getElementById('root');
-  if (rootEl) {
-    rootEl.innerHTML = `<div style="color: red; padding: 20px; font-family: sans-serif; text-align: center;">Error: La clave de API no ha sido configurada en el código. Abre index.html y reemplaza el texto del placeholder con tu clave.</div>`;
-  }
-  throw new Error("API_KEY is not set in the code");
-}
+const apiKey = "AIzaSyDmsXw8N2CsRYy3Vqh1JAvXY1dM104uEO8";
 const ai = new GoogleGenAI({ apiKey: apiKey });
-
-
 const responseSchema = {
   type: Type.OBJECT,
   properties: {
