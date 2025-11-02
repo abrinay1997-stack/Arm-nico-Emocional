@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Armónico-Emocional IA | BukoFlow</title>
+    <title>Maestro Emocional AI</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -167,6 +167,13 @@ const generateFullMidiDataUri = (progression, bpm, chordDuration, generatedLines
         addLineToTrack(melodyTrack, generatedLines.melody);
         tracks.push(melodyTrack);
     }
+    if (generatedLines.ostinato && generatedLines.ostinato.length > 0) {
+        const ostinatoTrack = new MidiWriter.Track();
+        ostinatoTrack.setTempo(bpm);
+        ostinatoTrack.addEvent(new MidiWriter.ProgramChangeEvent({ instrument: 82 }));
+        addLineToTrack(ostinatoTrack, generatedLines.ostinato);
+        tracks.push(ostinatoTrack);
+    }
     const write = new MidiWriter.Writer(tracks);
     const dataUri = write.dataUri();
     if (!dataUri) throw new Error('La biblioteca MIDI generó un archivo vacío.');
@@ -195,6 +202,7 @@ const generateSingleLineMidiDataUri = (line, bpm, instrument) => {
 // --- From services/geminiService.ts ---
 const apiKey = "AIzaSyDmsXw8N2CsRYy3Vqh1JAvXY1dM104uEO8";
 const ai = new GoogleGenAI({ apiKey });
+
 const chordProgressionSchema = {
   type: Type.OBJECT,
   properties: {
@@ -237,22 +245,31 @@ const musicalLineSchema = {
     },
     required: ["line"],
 };
-const generateChordProgression = async (emotions, keyAndScale, bpm, numChords, styleModifiers, references) => {
+const generateChordProgression = async (emotions, keyAndScale, bpm, numChords, styleModifiers, emotionalContext, harmonicReference, rhythmicReference, sonicReference) => {
   const prompt = `
-    Eres "Armónico-Emocional | Bukoflow", una IA experta en composición y teoría musical con un profundo conocimiento de la psicología de la música. Tu propósito principal es generar una progresión de acordes que capture la esencia de una mezcla compleja de emociones humanas, refinada por un estilo específico.
-    La solicitud del usuario es la siguiente:
-    - Emociones (en orden de prioridad): ${emotions.join(", ")}
-    - Modificadores de Estilo: ${styleModifiers.length > 0 ? styleModifiers.join(", ") : "Ninguno"}
-    - Referencias Artísticas/Musicales: ${references || "Ninguna"}
-    - Tonalidad y escala: ${keyAndScale}
-    - Tempo (BPM): ${bpm}
-    - Número de acordes: ${numChords}
-    Tu tarea es:
-    1. Analizar la mezcla emocional. Luego, utiliza los 'Modificadores de Estilo' y las 'Referencias' como filtros CRÍTICOS para definir el carácter de la progresión. Por ejemplo, 'Tristeza' + 'Minimalista' + referencia a 'Billie Eilish' debe resultar en armonías muy simples, espaciadas y quizás con algún acorde de color sutil, mientras que 'Tristeza' + 'Complejo' + referencia a 'Jacob Collier' podría usar acordes de jazz extendidos y disonancias. Las referencias son tu guía principal de estilo.
-    2. Generar una progresión de exactamente ${numChords} acordes que represente esta interpretación detallada.
-    3. Para cada acorde, especifica su nombre (ej. Gmaj7), las notas que lo componen (ej. G - B - D - F#), y su grado en la tonalidad (ej. I, V, iv).
-    4. Proporcionar un análisis conciso y preciso, explicando el "por qué" de tus elecciones, conectándolas no solo a las emociones sino también a los modificadores y referencias proporcionados.
-    5. Responde únicamente con un objeto JSON que se ajuste al esquema proporcionado. No incluyas nada fuera del formato JSON.
+    Eres "Maestro Emocional AI", una IA experta en composición y teoría musical con un profundo conocimiento de la psicología de la música. Tu propósito es generar una progresión de acordes que capture la esencia de una narrativa emocional y un estilo musical detallado.
+
+    **Contexto Creativo Principal:**
+    - **Núcleo Narrativo (Contexto Emocional):** ${emotionalContext || "No especificado. Concéntrate en las emociones."}
+    - **Emociones (en orden de prioridad):** ${emotions.join(", ")}
+    
+    **Directrices de Estilo y Sonido:**
+    - **Modificadores de Estilo Generales:** ${styleModifiers.length > 0 ? styleModifiers.join(", ") : "Ninguno"}
+    - **Referencia Armónica (Acordes/Voicings):** ${harmonicReference || "Ninguna"}
+    - **Referencia Rítmica (Groove/Sensación):** ${rhythmicReference || "Ninguna"}
+    - **Referencia Sonora (Instrumentación/Textura):** ${sonicReference || "Ninguna"}
+
+    **Parámetros Técnicos:**
+    - **Tonalidad y Escala:** ${keyAndScale}
+    - **Tempo (BPM):** ${bpm}
+    - **Número de Acordes a Generar:** ${numChords}
+
+    **Tu Tarea Detallada:**
+    1.  **Síntesis Creativa:** Tu tarea más importante es SINTETIZAR todas las directrices de arriba en una idea musical coherente. El **Núcleo Narrativo** es tu guía principal. Las emociones deben ser expresadas a través del filtro de las referencias específicas. Por ejemplo, si el contexto es "nostalgia" y la referencia armónica es "Bill Evans", debes usar acordes de jazz con tensiones sutiles y melancólicas.
+    2.  **Generación de Acordes:** Genera una progresión de exactamente ${numChords} acordes que encarne esta síntesis. No te limites a acordes diatónicos; usa acordes prestados, dominantes secundarios o modulaciones si sirven a la narrativa y las referencias.
+    3.  **Formato de Salida:** Para cada acorde, especifica su nombre (ej. Gmaj7), las notas que lo componen (ej. G - B - D - F#), y su grado en la tonalidad (ej. I, V, iv).
+    4.  **Análisis Profundo:** Proporciona un análisis conciso pero experto, explicando el "por qué" de tus elecciones. Conecta tus decisiones armónicas directamente al **Núcleo Narrativo**, las **Emociones** y las **Referencias** específicas. Explica cómo un acorde en particular o una transición refuerza la historia que estás contando.
+    5.  **Respuesta Exclusivamente en JSON:** Responde únicamente con un objeto JSON que se ajuste al esquema proporcionado. No incluyas absolutamente nada fuera del formato JSON.
   `;
   try {
     const response = await ai.models.generateContent({
@@ -276,29 +293,47 @@ const generateChordProgression = async (emotions, keyAndScale, bpm, numChords, s
     throw new Error("No se pudo generar la progresión. Por favor, inténtelo de nuevo.");
   }
 };
-const generateMusicalLine = async (progression, emotions, keyAndScale, bpm, lineType, styleModifiers, references) => {
-    const typeInstructions = lineType === 'bass' ? `
-          **Tu Tarea:** Crear una línea de bajo **moderna, profesional y minimalista** que sirva como el fundamento rítmico y armónico de la pieza. El *groove* y el *espacio* son más importantes que la complejidad melódica. Piensa en cómo un productor de Billie Eilish, Justin Bieber o Bad Bunny usaría el bajo: como una fuerza rítmica que se *siente* tanto como se oye.`
-        : `
-          **Tu Tarea:** Crear una **MELODÍA POP MODERNA (un "Topline")** que sea el gancho principal y el foco emocional de la pieza. La cadencia rítmica y la capacidad de ser pegajosa son tan importantes como las notas mismas. Piensa como un songwriter de élite escribiendo para Harry Styles, Billie Eilish o The Weeknd.`;
+const generateMusicalLine = async (progression, emotions, keyAndScale, bpm, lineType, styleModifiers, emotionalContext, harmonicReference, rhythmicReference, sonicReference) => {
+    let typeInstructions;
+    switch (lineType) {
+        case 'bass':
+            typeInstructions = `
+              **Tu Tarea:** Crear una línea de bajo **moderna, profesional y minimalista**. El *groove*, el *espacio* y la conexión con la **Referencia Rítmica** son cruciales. Debe ser el fundamento que se *siente*.`;
+            break;
+        case 'melody':
+            typeInstructions = `
+              **Tu Tarea:** Crear una **MELODÍA POP MODERNA (un "Topline")** que sea el gancho principal y el foco del **Núcleo Narrativo**. Debe ser memorable y rítmicamente atractiva, inspirada fuertemente en la **Referencia Armónica y Sonora**.`;
+            break;
+        case 'ostinato':
+            typeInstructions = `
+              **Tu Tarea:** Crear un **OSTINATO MODERNO** que actúe como una textura hipnótica. Debe ser repetitivo, complementar la armonía y añadir movimiento, basándose en la **Referencia Sonora** para su timbre y carácter (ej. arpegio de sinte, piano filtrado).`;
+            break;
+    }
     const progressionString = progression.map(p => `${p.degree} (${p.chord})`).join(' | ');
     const prompt = `
-        Eres un compositor y productor de pop moderno de élite, con una profunda sensibilidad para conectar música y emoción. Dada una progresión de acordes y un contexto emocional y estilístico, tu tarea es componer una línea musical profesional.
-        Contexto:
-        - Progresión de Acordes: ${progressionString}
-        - Tonalidad: ${keyAndScale}
-        - Emociones a expresar (en orden de importancia): ${emotions.join(", ")}
-        - Modificadores de Estilo: ${styleModifiers.length > 0 ? styleModifiers.join(", ") : "Ninguno"}
-        - Referencias Artísticas/Musicales: ${references || "Ninguna"}
-        - Tempo (BPM): ${bpm}
-        - Tipo de línea a generar: ${lineType}
-        Instrucciones:
-        1. Asimila profundamente la mezcla de emociones, modificadores y referencias. ESTOS ÚLTIMOS DOS SON LA GUÍA PRINCIPAL. Si la referencia es 'Daft Punk', la línea de bajo DEBE ser melódica y rítmica, con octavas. Si la referencia es 'Hans Zimmer', debe ser sostenida y épica.
-        2. ${typeInstructions}
-        3. La línea debe durar exactamente lo mismo que la progresión de acordes, que tiene ${progression.length} compases. Asume un compás de 4/4 para cada acorde.
-        4. Genera una secuencia de eventos de nota en formato JSON. Para cada evento, especifica la nota (con octava, ej. C3, F#4), su duración en notación de Tone.js ('4n' para negra, '8n' para corchea, '1m' para un compás entero, etc.), y su tiempo de inicio absoluto en formato 'compas:division:subdivision' (ej. '0:0:0', '0:2:0').
-        5. La línea debe ser musical y coherente, fuertemente inspirada en las referencias.
-        6. Responde únicamente con un objeto JSON que se ajuste al esquema proporcionado. No incluyas absolutamente nada fuera del formato JSON.
+        Eres un productor musical de élite. Tu tarea es componer una línea musical profesional (${lineType}) dentro de un contexto creativo ya definido.
+
+        **Contexto Creativo Principal:**
+        - **Progresión de Acordes:** ${progressionString}
+        - **Núcleo Narrativo (Contexto Emocional):** ${emotionalContext || "No especificado. Concéntrate en las emociones."}
+        - **Emociones (en orden de prioridad):** ${emotions.join(", ")}
+
+        **Directrices de Estilo y Sonido:**
+        - **Modificadores de Estilo Generales:** ${styleModifiers.length > 0 ? styleModifiers.join(", ") : "Ninguno"}
+        - **Referencia Armónica (Acordes/Voicings):** ${harmonicReference || "Ninguna"}
+        - **Referencia Rítmica (Groove/Sensación):** ${rhythmicReference || "Ninguna"}
+        - **Referencia Sonora (Instrumentación/Textura):** ${sonicReference || "Ninguna"}
+
+        **Parámetros Técnicos:**
+        - **Tonalidad y Escala:** ${keyAndScale}
+        - **Tempo (BPM):** ${bpm}
+
+        **Instrucciones Específicas para la Línea de ${lineType.toUpperCase()}:**
+        1.  **Asimilación Profunda:** Interioriza el **Núcleo Narrativo** y las **Referencias**. Tu línea DEBE servir a estos elementos. Si la referencia rítmica es "J Dilla", el bajo debe tener un feel "laid-back". Si la referencia sonora es "sintes de los 80", el ostinato debe sonar a eso.
+        2.  **Tarea Específica:** ${typeInstructions}
+        3.  **Duración y Estructura:** La línea debe durar exactamente ${progression.length} compases (asume 4/4). Debe ser musical y coherente.
+        4.  **Formato de Salida:** Genera la línea como una secuencia de eventos de nota en JSON. Especifica la nota (con octava, ej. C3, F#4), su duración en notación de Tone.js ('4n', '8n', '1m', etc.), y su tiempo de inicio absoluto en formato 'compas:division:subdivision'.
+        5.  **Respuesta Exclusivamente en JSON:** Responde únicamente con un objeto JSON que se ajuste al esquema proporcionado. No incluyas nada fuera del formato JSON.
     `;
     try {
         const response = await ai.models.generateContent({
@@ -327,7 +362,7 @@ const Loader = () => {
   return React.createElement('div', { className: "flex flex-col items-center justify-center space-y-4" },
     React.createElement('div', { className: "w-16 h-16 border-4 border-dashed rounded-full animate-spin border-indigo-500" }),
     React.createElement('h3', { className: "text-lg font-semibold text-white" }, "Componiendo..."),
-    React.createElement('p', { className: "text-gray-400 text-sm" }, "Bukoflow está en modo de pensamiento profundo para tu solicitud compleja.")
+    React.createElement('p', { className: "text-gray-400 text-sm" }, "Maestro Emocional AI está creando tu pieza musical.")
   );
 };
 
@@ -456,7 +491,11 @@ const EmotionSelector = ({ selectedEmotions, onToggleEmotion, onReorderEmotions,
 };
 
 // --- From components/ParametersForm.tsx ---
-const ParametersForm = ({ musicKey, musicScale, bpm, numChords, chordDuration, styleModifiers, references, onToggleModifier, onParamChange, onBack, onGenerate }) => {
+const ParametersForm = ({ 
+  musicKey, musicScale, bpm, numChords, chordDuration, 
+  styleModifiers, emotionalContext, harmonicReference, rhythmicReference, sonicReference,
+  onToggleModifier, onParamChange, onBack, onGenerate 
+}) => {
   return React.createElement('div', { className: "w-full flex flex-col items-center" },
     React.createElement('h2', { className: "text-2xl font-bold text-white mb-2" }, "Paso 2: Parámetros Musicales"),
     React.createElement('p', { className: "text-gray-400 mb-6 text-center" }, "Define la tonalidad, el ritmo y el estilo de tu pieza."),
@@ -507,10 +546,25 @@ const ParametersForm = ({ musicKey, musicScale, bpm, numChords, chordDuration, s
           })
         )
       ),
-      React.createElement('div', null,
-        React.createElement('label', { htmlFor: "references", className: "block text-sm font-medium text-gray-300 mb-2" }, "Artistas o Canciones de Referencia (Opcional)"),
-        React.createElement('input', { type: "text", id: "references", value: references, onChange: (e) => onParamChange('references', e.target.value), className: "w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-3 focus:ring-indigo-500 focus:border-indigo-500", placeholder: "Ej: Billie Eilish, Daft Punk, Hans Zimmer" })
-      )
+       React.createElement('div', null,
+            React.createElement('label', { htmlFor: "emotionalContext", className: "block text-sm font-medium text-gray-300 mb-2" }, "Contexto Emocional (Opcional)"),
+            React.createElement('textarea', { id: "emotionalContext", value: emotionalContext, onChange: (e) => onParamChange('emotionalContext', e.target.value), className: "w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-3 focus:ring-indigo-500 focus:border-indigo-500", placeholder: "Ej: Una despedida agridulce en una estación de tren lluviosa.", rows: 2 })
+       ),
+       React.createElement('div', {className: "space-y-4"},
+          React.createElement('h3', {className: "text-sm font-medium text-gray-300 mb-2"}, "Referencias Específicas (Opcional)"),
+          React.createElement('div', null,
+              React.createElement('label', { htmlFor: "harmonicReference", className: "block text-xs font-medium text-gray-400 mb-1" }, "Referencia Armónica (Acordes/Voicings)"),
+              React.createElement('input', { type: "text", id: "harmonicReference", value: harmonicReference, onChange: (e) => onParamChange('harmonicReference', e.target.value), className: "w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-3 focus:ring-indigo-500 focus:border-indigo-500 text-sm", placeholder: "Ej: Bill Evans, coros de Queen, Ravel" })
+          ),
+          React.createElement('div', null,
+              React.createElement('label', { htmlFor: "rhythmicReference", className: "block text-xs font-medium text-gray-400 mb-1" }, "Referencia Rítmica (Groove/Batería)"),
+              React.createElement('input', { type: "text", id: "rhythmicReference", value: rhythmicReference, onChange: (e) => onParamChange('rhythmicReference', e.target.value), className: "w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-3 focus:ring-indigo-500 focus:border-indigo-500 text-sm", placeholder: "Ej: J Dilla, el bajo de Thundercat, Daft Punk" })
+          ),
+          React.createElement('div', null,
+              React.createElement('label', { htmlFor: "sonicReference", className: "block text-xs font-medium text-gray-400 mb-1" }, "Referencia Sonora (Instrumentación/Textura)"),
+              React.createElement('input', { type: "text", id: "sonicReference", value: sonicReference, onChange: (e) => onParamChange('sonicReference', e.target.value), className: "w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-3 focus:ring-indigo-500 focus:border-indigo-500 text-sm", placeholder: "Ej: Sintes de los 80, pianos lo-fi, Hans Zimmer" })
+          )
+       )
     ),
     React.createElement('div', { className: "w-full max-w-md mt-8 flex justify-between" },
       React.createElement('button', { onClick: onBack, className: "px-6 py-3 bg-gray-600 text-white font-semibold rounded-lg shadow-md hover:bg-gray-700 transition-colors duration-200" }, "Atrás"),
@@ -524,6 +578,7 @@ const ResultDisplay = ({ result, isLoading, error, bpm, chordDuration, musicKey,
   const [midiDataUri, setMidiDataUri] = useState(null);
   const [bassMidiUri, setBassMidiUri] = useState(null);
   const [melodyMidiUri, setMelodyMidiUri] = useState(null);
+  const [ostinatoMidiUri, setOstinatoMidiUri] = useState(null);
   const [midiError, setMidiError] = useState(null);
 
   useEffect(() => {
@@ -568,6 +623,21 @@ const ResultDisplay = ({ result, isLoading, error, bpm, chordDuration, musicKey,
         setMelodyMidiUri(null);
     }
   }, [generatedLines.melody, bpm]);
+
+  useEffect(() => {
+    if (generatedLines.ostinato) {
+      try {
+        const uri = generateSingleLineMidiDataUri(generatedLines.ostinato, bpm, 82);
+        setOstinatoMidiUri(uri);
+      } catch (err) {
+        console.error('Failed to generate OSTINATO MIDI file:', err);
+        setOstinatoMidiUri(null);
+      }
+    } else {
+        setOstinatoMidiUri(null);
+    }
+  }, [generatedLines.ostinato, bpm]);
+
 
   const handleDragStart = (e) => {
     if (midiDataUri) {
@@ -617,7 +687,7 @@ const ResultDisplay = ({ result, isLoading, error, bpm, chordDuration, musicKey,
         )
       )
     ),
-    React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 gap-6 mb-6" },
+    React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-3 gap-6 mb-6" },
       React.createElement('div', { className: "bg-gray-800/50 border border-gray-700 rounded-lg p-6 flex flex-col" },
         React.createElement('h3', { className: "text-xl font-semibold text-indigo-400 mb-3" }, "Línea de Bajo"),
         React.createElement('p', { className: "text-sm text-gray-400 flex-grow" }, generatedLines.bass ? "Línea de bajo generada y lista para descargar." : "Genera una línea de bajo para complementar tu progresión."),
@@ -637,6 +707,16 @@ const ResultDisplay = ({ result, isLoading, error, bpm, chordDuration, musicKey,
           ),
           melodyMidiUri && React.createElement('a', { href: melodyMidiUri, download: "melody.mid", title: "Descargar solo Melodía (MIDI)", className: "flex-shrink-0 px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition-colors" }, "MIDI")
         )
+      ),
+      React.createElement('div', { className: "bg-gray-800/50 border border-gray-700 rounded-lg p-6 flex flex-col" },
+        React.createElement('h3', { className: "text-xl font-semibold text-indigo-400 mb-3" }, "Ostinato"),
+        React.createElement('p', { className: "text-sm text-gray-400 flex-grow" }, generatedLines.ostinato ? "Ostinato generado y listo para descargar." : "Genera un patrón rítmico/melódico repetitivo."),
+        React.createElement('div', { className: "flex gap-2 mt-4" },
+          React.createElement('button', { onClick: () => onGenerateLine('ostinato'), disabled: isGeneratingLine, className: "px-4 py-2 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 disabled:bg-gray-600 w-full transition-colors" },
+            isGeneratingLine ? 'Generando...' : 'Generar Ostinato'
+          ),
+          ostinatoMidiUri && React.createElement('a', { href: ostinatoMidiUri, download: "ostinato.mid", title: "Descargar solo Ostinato (MIDI)", className: "flex-shrink-0 px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition-colors" }, "MIDI")
+        )
       )
     ),
     React.createElement('div', { className: "bg-gray-800/50 border border-gray-700 rounded-lg p-6" },
@@ -652,7 +732,7 @@ const ResultDisplay = ({ result, isLoading, error, bpm, chordDuration, musicKey,
 };
 
 // --- From App.tsx ---
-const LoginScreen = ({ onLoginSuccess }) => {
+const LoginScreen = ({onLoginSuccess}) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const ACCESS_KEYS = ['abrinay', 'richardlove', 'alexking', 'avalon', 'kays', 'invitado'];
@@ -667,7 +747,7 @@ const LoginScreen = ({ onLoginSuccess }) => {
   };
   return React.createElement('div', { className: "bg-gray-900 text-white min-h-screen flex flex-col items-center justify-center p-4" },
     React.createElement('div', { className: "text-center max-w-md w-full" },
-      React.createElement('h1', { className: "text-4xl sm:text-5xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-500" }, "Armónico-Emocional IA"),
+      React.createElement('h1', { className: "text-4xl sm:text-5xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-500" }, "Maestro Emocional AI"),
       React.createElement('p', { className: "mt-4 text-lg text-gray-400" }, "Bienvenido. Por favor, introduce la clave de acceso para continuar."),
       React.createElement('form', { onSubmit: handleSubmit, className: "mt-8 space-y-6" },
         React.createElement('div', { className: "rounded-md shadow-sm" },
@@ -682,12 +762,11 @@ const LoginScreen = ({ onLoginSuccess }) => {
         )
       ),
       React.createElement('footer', { className: "mt-12 text-xs text-gray-500" },
-        React.createElement('p', null, "Powered by Bukoflow")
+        React.createElement('p', null, "Powered by Maestro Emocional AI")
       )
     )
   );
 };
-
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
@@ -698,11 +777,14 @@ function App() {
   const [numChords, setNumChords] = useState(4);
   const [chordDuration, setChordDuration] = useState('1');
   const [styleModifiers, setStyleModifiers] = useState([]);
-  const [references, setReferences] = useState('');
+  const [emotionalContext, setEmotionalContext] = useState('');
+  const [harmonicReference, setHarmonicReference] = useState('');
+  const [rhythmicReference, setRhythmicReference] = useState('');
+  const [sonicReference, setSonicReference] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isGeneratingLine, setIsGeneratingLine] = useState(false);
   const [result, setResult] = useState(null);
-  const [generatedLines, setGeneratedLines] = useState({ bass: null, melody: null });
+  const [generatedLines, setGeneratedLines] = useState({ bass: null, melody: null, ostinato: null });
   const [error, setError] = useState(null);
   const handleLoginSuccess = () => setIsAuthenticated(true);
   const handleSelectEmotion = useCallback((emotionName) => {
@@ -733,7 +815,10 @@ function App() {
     else if (param === 'bpm') setBpm(value);
     else if (param === 'numChords') setNumChords(value);
     else if (param === 'chordDuration') setChordDuration(value);
-    else if (param === 'references') setReferences(value);
+    else if (param === 'emotionalContext') setEmotionalContext(value);
+    else if (param === 'harmonicReference') setHarmonicReference(value);
+    else if (param === 'rhythmicReference') setRhythmicReference(value);
+    else if (param === 'sonicReference') setSonicReference(value);
   }, []);
   const handleNext = () => setCurrentStep(prev => Math.min(prev + 1, STEPS.length - 1));
   const handleBack = () => setCurrentStep(prev => Math.max(prev - 1, 0));
@@ -746,11 +831,14 @@ function App() {
     setNumChords(4);
     setChordDuration('1');
     setStyleModifiers([]);
-    setReferences('');
+    setEmotionalContext('');
+    setHarmonicReference('');
+    setRhythmicReference('');
+    setSonicReference('');
     setIsLoading(false);
     setIsGeneratingLine(false);
     setResult(null);
-    setGeneratedLines({ bass: null, melody: null });
+    setGeneratedLines({ bass: null, melody: null, ostinato: null });
     setError(null);
   };
   const handleGenerate = async () => {
@@ -758,11 +846,11 @@ function App() {
     setIsLoading(true);
     setError(null);
     setResult(null);
-    setGeneratedLines({ bass: null, melody: null });
+    setGeneratedLines({ bass: null, melody: null, ostinato: null });
     const emotionNames = selectedEmotions.map(e => e.name);
     const keyAndScale = `${musicKey} ${musicScale}`;
     try {
-      const generatedResult = await generateChordProgression(emotionNames, keyAndScale, bpm, numChords, styleModifiers, references);
+      const generatedResult = await generateChordProgression(emotionNames, keyAndScale, bpm, numChords, styleModifiers, emotionalContext, harmonicReference, rhythmicReference, sonicReference);
       setResult(generatedResult);
     } catch (e) {
       setError(e.message || "An unknown error occurred.");
@@ -782,7 +870,10 @@ function App() {
             bpm,
             lineType,
             styleModifiers,
-            references
+            emotionalContext,
+            harmonicReference,
+            rhythmicReference,
+            sonicReference
         );
         setGeneratedLines(prev => ({ ...prev, [lineType]: line }));
       } catch (e) {
@@ -796,7 +887,7 @@ function App() {
       case 0:
         return React.createElement(EmotionSelector, { selectedEmotions, onToggleEmotion: handleSelectEmotion, onReorderEmotions: setSelectedEmotions, onNext: handleNext });
       case 1:
-        return React.createElement(ParametersForm, { musicKey, musicScale, bpm, numChords, chordDuration, styleModifiers, references, onToggleModifier: handleToggleModifier, onParamChange: handleParamChange, onBack: handleBack, onGenerate: handleGenerate });
+        return React.createElement(ParametersForm, { musicKey, musicScale, bpm, numChords, chordDuration, styleModifiers, emotionalContext, harmonicReference, rhythmicReference, sonicReference, onToggleModifier: handleToggleModifier, onParamChange: handleParamChange, onBack: handleBack, onGenerate: handleGenerate });
       case 2:
         return React.createElement(ResultDisplay, { result, isLoading, error, bpm, chordDuration, onReset: handleReset, musicKey, musicScale, onGenerateLine: handleGenerateLine, generatedLines, isGeneratingLine });
       default:
@@ -808,7 +899,7 @@ function App() {
   }
   return React.createElement('div', { className: "bg-gray-900 text-white min-h-screen flex flex-col items-center p-4 sm:p-8" },
     React.createElement('header', { className: "text-center mb-8" },
-      React.createElement('h1', { className: "text-4xl sm:text-5xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-500" }, "Armónico-Emocional | Bukoflow"),
+      React.createElement('h1', { className: "text-4xl sm:text-5xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-500" }, "Maestro Emocional AI"),
       currentStep < 2 && React.createElement('p', { className: "mt-4 text-lg text-gray-400 max-w-2xl mx-auto" }, "Crea música a partir de tus sentimientos.")
     ),
     React.createElement('div', { className: "w-full max-w-4xl mb-12" },
@@ -818,7 +909,7 @@ function App() {
       renderCurrentStep()
     ),
     React.createElement('footer', { className: "mt-8 text-xs text-gray-500" },
-      React.createElement('p', null, "Powered by Bukoflow")
+      React.createElement('p', null, "Powered by Maestro Emocional AI")
     )
   );
 }
@@ -831,4 +922,3 @@ root.render(React.createElement(React.StrictMode, null, React.createElement(App)
     </script>
 </body>
 </html>
-
