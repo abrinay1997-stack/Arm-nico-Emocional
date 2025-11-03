@@ -205,9 +205,6 @@ const generateSingleLineMidiDataUri = (line, bpm, instrument) => {
 };
 
 // --- From services/geminiService.ts ---
-// WARNING: Storing your API key directly in the code is not secure for public applications.
-// This is done for simplicity in this private GitHub Pages example.
-// For a production app, use a backend server to protect your key.
 const apiKey = "AIzaSyDmsXw8N2CsRYy3Vqh1JAvXY1dM104uEO8";
 const ai = new GoogleGenAI({ apiKey });
 
@@ -216,7 +213,7 @@ const chordProgressionSchema = {
   properties: {
     progression: {
       type: Type.ARRAY,
-      description: "La progresión de acordes generada.",
+      description: "La progresión de acordes generada, ensamblada en el orden final correcto.",
       items: {
         type: Type.OBJECT,
         properties: {
@@ -229,7 +226,7 @@ const chordProgressionSchema = {
     },
     analysis: {
       type: Type.STRING,
-      description: "Un análisis conciso y preciso de por qué se eligió la progresión, conectando cada acorde o transición con la mezcla emocional solicitada. Debe ser breve y directo."
+      description: "Un análisis conciso y experto sobre la estructura y las elecciones armónicas, conectando cada sección (A, B, etc.) y transición con la mezcla emocional y las referencias solicitadas. Debe ser breve y directo."
     },
   },
   required: ["progression", "analysis"],
@@ -267,8 +264,10 @@ const getVoiceLeadingInstructions = (mode) => {
     }
 };
 
-const generateChordProgression = async (emotions, keyAndScale, bpm, numChords, styleModifiers, emotionalContext, harmonicReference, rhythmicReference, sonicReference, voiceLeading, regenerationData = null) => {
+const generateChordProgression = async (emotions, keyAndScale, bpm, songStructure, chordsPerSection, styleModifiers, emotionalContext, harmonicReference, rhythmicReference, sonicReference, voiceLeading, regenerationData = null) => {
   let prompt;
+  
+  const totalChords = songStructure.split('').reduce((sum, part) => sum + (chordsPerSection[part] || 0), 0);
   
   const coreContext = `
     **Contexto Creativo Principal:**
@@ -295,31 +294,41 @@ const generateChordProgression = async (emotions, keyAndScale, bpm, numChords, s
 
         **Contexto Original (DEBE MANTENERSE):**
         ${coreContext}
+        - **Estructura Original:** ${songStructure} (${Object.entries(chordsPerSection).map(([s, c]) => `Sección ${s}: ${c} acordes`).join(', ')})
         - **Análisis Original (para referencia):** ${originalAnalysis}
 
         **Progresión Actual:**
         ${progressionString}
         
         **Tu Tarea Detallada:**
-        1.  **Mantén los Acordes Bloqueados:** Los acordes marcados como "BLOQUEADO" son perfectos. NO los alteres de ninguna manera. Cópialos exactamente en tu respuesta.
-        2.  **Regenera los Acordes No Bloqueados:** Crea nuevos acordes únicamente para las posiciones marcadas como "REGENERAR".
-        3.  **Asegura la Coherencia:** Los nuevos acordes deben conectarse musical, rítmica y emocionalmente con los acordes bloqueados. La progresión completa debe sentirse como una sola pieza coherente y seguir las reglas de conducción de voces.
-        4.  **Actualiza el Análisis:** Modifica el análisis original para reflejar los cambios. Explica por qué los nuevos acordes funcionan y cómo interactúan con los acordes bloqueados para cumplir el objetivo emocional.
-        5.  **Respuesta Exclusivamente en JSON:** Responde únicamente con el objeto JSON COMPLETO de la nueva progresión (incluyendo los acordes bloqueados sin cambios) y el nuevo análisis, usando el esquema proporcionado. No incluyas nada fuera del formato JSON.
+        1.  **Respeta la Estructura:** La progresión final DEBE mantener la estructura original (${songStructure}). Al regenerar, asegúrate de que los nuevos acordes sean coherentes con el propósito de su sección (ej. un acorde regenerado en una sección 'B' de "alivio" debe mantener esa sensación).
+        2.  **Mantén los Acordes Bloqueados:** Los acordes marcados como "BLOQUEADO" son perfectos. NO los alteres de ninguna manera. Cópialos exactamente en tu respuesta.
+        3.  **Regenera los Acordes No Bloqueados:** Crea nuevos acordes únicamente para las posiciones marcadas como "REGENERAR".
+        4.  **Asegura la Coherencia:** Los nuevos acordes deben conectarse musical y emocionalmente con los acordes bloqueados adyacentes.
+        5.  **Actualiza el Análisis:** Modifica el análisis original para reflejar los cambios. Explica por qué los nuevos acordes funcionan y cómo interactúan con los acordes bloqueados para cumplir el objetivo emocional y estructural.
+        6.  **Respuesta Exclusivamente en JSON:** Responde únicamente con el objeto JSON COMPLETO de la nueva progresión (incluyendo los acordes bloqueados) y el nuevo análisis, usando el esquema proporcionado.
       `;
   } else {
       prompt = `
-        Eres "Maestro Emocional AI", una IA experta en composición y teoría musical con un profundo conocimiento de la psicología de la música. Tu propósito es generar una progresión de acordes que capture la esencia de una narrativa emocional y un estilo musical detallado.
+        Eres "Maestro Emocional AI", una IA experta en composición y teoría musical con un profundo conocimiento de la psicología de la música. Tu propósito es generar una progresión de acordes estructurada que capture la esencia de una narrativa emocional y un estilo musical detallado.
 
         ${coreContext}
-        - **Número de Acordes a Generar:** ${numChords}
+        
+        **Estructura Musical Detallada:**
+        - **Formato de la Estructura:** ${songStructure}
+        - **Detalle de Secciones:**
+        ${Object.entries(chordsPerSection).map(([section, count]) => `  - Sección ${section}: ${count} acordes`).join('\n')}
+        - **Número Total de Acordes a Generar:** ${totalChords}
 
         **Tu Tarea Detallada:**
-        1.  **Síntesis Creativa:** Tu tarea más importante es SINTETIZAR todas las directrices de arriba en una idea musical coherente. El **Núcleo Narrativo** es tu guía principal. Las emociones deben ser expresadas a través del filtro de las referencias específicas. Por ejemplo, si el contexto es "nostalgia" y la referencia armónica es "Bill Evans", debes usar acordes de jazz con tensiones sutiles y melancólicas.
-        2.  **Generación de Acordes:** Genera una progresión de exactamente ${numChords} acordes que encarne esta síntesis. No te limites a acordes diatónicos; usa acordes prestados, dominantes secundarios o modulaciones si sirven a la narrativa y las referencias. Presta especial atención a la **Conducción de Voces**.
-        3.  **Formato de Salida:** Para cada acorde, especifica su nombre (ej. Gmaj7), las notas que lo componen (ej. G - B - D - F#), y su grado en la tonalidad (ej. I, V, iv).
-        4.  **Análisis Profundo:** Proporciona un análisis conciso pero experto, explicando el "por qué" de tus elecciones. Conecta tus decisiones armónicas directamente al **Núcleo Narrativo**, las **Emociones**, las **Referencias** y la **Conducción de Voces**. Explica cómo un acorde o una transición refuerza la historia.
-        5.  **Respuesta Exclusivamente en JSON:** Responde únicamente con un objeto JSON que se ajuste al esquema proporcionado. No incluyas absolutamente nada fuera del formato JSON.
+        1.  **Composición por Secciones:** Tu tarea principal es componer musicalmente para cada *letra de sección única* (A, B, etc.).
+            - Las secciones con letras diferentes (ej. A vs B) DEBEN ser musical y emocionalmente distintas para crear contraste y desarrollo. La sección B debe sentirse como una respuesta o evolución de la sección A.
+            - Las secciones con la MISMA letra (ej. las dos 'A' en una estructura AABA) deben tener la MISMA progresión de acordes.
+        2.  **Síntesis Creativa:** Sintetiza el **Núcleo Narrativo** y las **Referencias** en cada sección. Por ejemplo, la sección A puede representar la "tensión" y la sección B el "alivio".
+        3.  **Ensamblaje Final:** Una vez compuestas las progresiones para cada sección única, ensámblalas en el orden final dictado por el **Formato de la Estructura** (${songStructure}) para crear la progresión completa.
+        4.  **Formato de Salida:** Para cada acorde en la progresión final, especifica su nombre (ej. Gmaj7), las notas que lo componen (ej. G - B - D - F#), y su grado en la tonalidad (ej. I, V, iv).
+        5.  **Análisis Estructural:** En tu análisis, no solo expliques los acordes, sino que también describe la función de cada sección (ej. "La sección A establece la melancolía principal...") y cómo el contraste entre ellas cuenta la historia emocional.
+        6.  **Respuesta Exclusivamente en JSON:** Responde únicamente con un objeto JSON que se ajuste al esquema proporcionado. No incluyas absolutamente nada fuera del formato JSON.
       `;
   }
 
@@ -546,10 +555,12 @@ const EmotionSelector = ({ selectedEmotions, onToggleEmotion, onReorderEmotions,
 
 // --- From components/ParametersForm.tsx ---
 const ParametersForm = ({ 
-  musicKey, musicScale, bpm, numChords, chordDuration, voiceLeading,
+  musicKey, musicScale, bpm, songStructure, chordsPerSection, chordDuration, voiceLeading,
   styleModifiers, emotionalContext, harmonicReference, rhythmicReference, sonicReference,
   onToggleModifier, onParamChange, onBack, onGenerate 
 }) => {
+  const uniqueSections = [...new Set(songStructure.replace(/[^A-Ha-h]/g, '').toUpperCase().split(''))].sort();
+  
   return React.createElement('div', { className: "w-full flex flex-col items-center" },
     React.createElement('h2', { className: "text-2xl font-bold text-white mb-2" }, "Paso 2: Parámetros Musicales"),
     React.createElement('p', { className: "text-gray-400 mb-6 text-center" }, "Define la tonalidad, el ritmo y el estilo de tu pieza."),
@@ -570,19 +581,41 @@ const ParametersForm = ({
         React.createElement('div', null,
           React.createElement('label', { htmlFor: "bpm", className: "block text-sm font-medium text-gray-300 mb-2" }, "Tempo (BPM)"),
           React.createElement('input', { type: "number", id: "bpm", value: bpm, onChange: (e) => onParamChange('bpm', parseInt(e.target.value, 10)), min: "40", max: "220", className: "w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-3 focus:ring-indigo-500 focus:border-indigo-500" })
-        ),
+        )
+      ),
+      // NEW STRUCTURE SECTION
+      React.createElement('div', { className: "bg-gray-800/50 border border-gray-700 rounded-lg p-4" },
+        React.createElement('h3', { className: "text-base font-semibold text-indigo-400 mb-3" }, "Estructura de la Canción"),
+        React.createElement('div', { className: "space-y-4" },
+            React.createElement('div', null,
+                React.createElement('label', { htmlFor: "songStructure", className: "block text-sm font-medium text-gray-300 mb-2" }, "Formato de la Estructura"),
+                React.createElement('input', { type: "text", id: "songStructure", value: songStructure, onChange: (e) => onParamChange('songStructure', e.target.value), maxLength: 12, className: "w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-3 focus:ring-indigo-500 focus:border-indigo-500 font-mono tracking-widest", placeholder: "Ej: ABAB, AABA, ABC" })
+            ),
+            uniqueSections.length > 0 && React.createElement('div', { className: "grid grid-cols-2 md:grid-cols-4 gap-3" },
+                uniqueSections.map(section => React.createElement('div', { key: section },
+                    React.createElement('label', { htmlFor: `chords-section-${section}`, className: "block text-sm font-medium text-gray-300 mb-2" }, `Acordes en ${section}`),
+                    React.createElement('input', {
+                        type: "number",
+                        id: `chords-section-${section}`,
+                        value: chordsPerSection[section] || 4,
+                        onChange: (e) => onParamChange('chordsPerSection', { ...chordsPerSection, [section]: parseInt(e.target.value, 10) || 1 }),
+                        min: "1",
+                        max: "16",
+                        className: "w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-3 focus:ring-indigo-500 focus:border-indigo-500 text-center"
+                    })
+                ))
+            )
+        )
+      ),
+      React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 gap-4" },
         React.createElement('div', null,
-          React.createElement('label', { htmlFor: "numChords", className: "block text-sm font-medium text-gray-300 mb-2" }, "Nº de Acordes"),
-          React.createElement('input', { type: "number", id: "numChords", value: numChords, onChange: (e) => onParamChange('numChords', parseInt(e.target.value, 10)), min: "2", max: "16", className: "w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-3 focus:ring-indigo-500 focus:border-indigo-500" })
-        ),
-        React.createElement('div', { className: "md:col-span-2" },
           React.createElement('label', { htmlFor: "chordDuration", className: "block text-sm font-medium text-gray-300 mb-2" }, "Duración por Acorde"),
           React.createElement('select', { id: "chordDuration", value: chordDuration, onChange: (e) => onParamChange('chordDuration', e.target.value), className: "w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-3 focus:ring-indigo-500 focus:border-indigo-500" },
             Object.entries(CHORD_DURATIONS).map(([value, name]) => React.createElement('option', { key: value, value: value }, name))
           )
         ),
-        React.createElement('div', { className: "md:col-span-2" },
-            React.createElement('label', { htmlFor: "voiceLeading", className: "block text-sm font-medium text-gray-300 mb-2" }, "Conducción de Voces (Voice Leading)"),
+        React.createElement('div', null,
+            React.createElement('label', { htmlFor: "voiceLeading", className: "block text-sm font-medium text-gray-300 mb-2" }, "Conducción de Voces"),
             React.createElement('select', { id: "voiceLeading", value: voiceLeading, onChange: (e) => onParamChange('voiceLeading', e.target.value), className: "w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-3 focus:ring-indigo-500 focus:border-indigo-500" },
                 Object.entries(VOICE_LEADING_MODES).map(([value, name]) => React.createElement('option', { key: value, value: value }, name))
             )
@@ -632,7 +665,7 @@ const ParametersForm = ({
 };
 
 // --- From components/ResultDisplay.tsx ---
-const ResultDisplay = ({ result, isLoading, error, bpm, chordDuration, musicKey, musicScale, onReset, onGenerateLine, generatedLines, isGeneratingLine, lockedChords, onToggleLock, onRegenerate, isRegenerating }) => {
+const ResultDisplay = ({ result, isLoading, error, bpm, chordDuration, musicKey, musicScale, songStructure, chordsPerSection, onReset, onGenerateLine, generatedLines, isGeneratingLine, lockedChords, onToggleLock, onRegenerate, isRegenerating }) => {
   const [midiDataUri, setMidiDataUri] = useState(null);
   const [bassMidiUri, setBassMidiUri] = useState(null);
   const [melodyMidiUri, setMelodyMidiUri] = useState(null);
@@ -702,6 +735,38 @@ const ResultDisplay = ({ result, isLoading, error, bpm, chordDuration, musicKey,
     }
   };
 
+  const renderChordsWithStructure = () => {
+    const sections = [];
+    let chordIndex = 0;
+    songStructure.split('').forEach((sectionChar, i) => {
+        const numChordsInSection = chordsPerSection[sectionChar] || 0;
+        const sectionChords = result.progression.slice(chordIndex, chordIndex + numChordsInSection);
+        
+        sections.push(
+            React.createElement('div', { key: `section-${sectionChar}-${i}`, className: "mb-4" },
+                React.createElement('h4', { className: "text-lg font-semibold text-gray-400 mb-3 border-b border-gray-700 pb-2" }, `Sección ${sectionChar}`),
+                React.createElement('div', { className: "flex flex-wrap gap-4 justify-center" },
+                    sectionChords.map((item, localIndex) => {
+                        const globalIndex = chordIndex + localIndex;
+                        return React.createElement('div', { key: `${item.chord}-${globalIndex}`, className: `relative bg-gray-900 p-4 rounded-lg text-center flex-grow flex flex-col justify-center min-w-[100px] shadow-md border border-gray-700 transition-all duration-300 ${lockedChords[globalIndex] ? 'border-indigo-500 ring-2 ring-indigo-500/50' : ''}` },
+                            React.createElement('button', { onClick: () => onToggleLock(globalIndex), title: lockedChords[globalIndex] ? 'Desbloquear Acorde' : 'Bloquear Acorde', className: "absolute top-2 right-2 text-gray-500 hover:text-white transition-colors" },
+                                lockedChords[globalIndex] ?
+                                React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-5 w-5 text-indigo-400", viewBox: "0 0 20 20", fill: "currentColor" }, React.createElement('path', { fillRule: "evenodd", d: "M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z", clipRule: "evenodd" })) :
+                                React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-5 w-5", viewBox: "0 0 20 20", fill: "currentColor" }, React.createElement('path', { d: "M10 3.5A3.5 3.5 0 006.5 7v2.5a.75.75 0 001.5 0V7A2 2 0 0110 5a2 2 0 012 2v1.5a.75.75 0 001.5 0V7A3.5 3.5 0 0010 3.5zM4 9.75A.75.75 0 014.75 9h10.5a.75.75 0 010 1.5H4.75A.75.75 0 014 9.75zM4.5 12a2.5 2.5 0 00-2.5 2.5v1A2.5 2.5 0 004.5 18h11a2.5 2.5 0 002.5-2.5v-1a2.5 2.5 0 00-2.5-2.5h-11z"}))
+                            ),
+                            React.createElement('p', { className: "text-2xl font-mono text-green-300 tracking-wider" }, item.chord),
+                            React.createElement('p', { className: "text-lg font-mono text-gray-400" }, item.degree),
+                            React.createElement('p', { className: "text-sm font-mono text-indigo-300 mt-1" }, item.notes)
+                        )
+                    })
+                )
+            )
+        );
+        chordIndex += numChordsInSection;
+    });
+    return sections;
+  };
+
   const allLocked = lockedChords.every(Boolean);
 
   if (isLoading) return React.createElement(Loader);
@@ -718,7 +783,7 @@ const ResultDisplay = ({ result, isLoading, error, bpm, chordDuration, musicKey,
     React.createElement('div', { className: "bg-gray-800/50 border border-gray-700 rounded-lg p-6 mb-6" },
       React.createElement('div', { className: "flex justify-between items-start mb-4 flex-wrap gap-4" },
         React.createElement('div', null,
-          React.createElement('h3', { className: "text-xl font-semibold text-indigo-400" }, "Progresión de Acordes"),
+          React.createElement('h3', { className: "text-xl font-semibold text-indigo-400" }, `Progresión de Acordes (${songStructure})`),
           React.createElement('p', { className: "text-sm text-gray-400 mt-1" }, `${musicKey} ${musicScale}`)
         ),
         React.createElement('div', { className: "flex flex-col items-end" },
@@ -741,20 +806,7 @@ const ResultDisplay = ({ result, isLoading, error, bpm, chordDuration, musicKey,
            )
         )
       ),
-      React.createElement('div', { className: "flex flex-wrap gap-4 justify-center" },
-        result.progression.map((item, index) =>
-          React.createElement('div', { key: `${item.chord}-${index}`, className: `relative bg-gray-900 p-4 rounded-lg text-center flex-grow flex flex-col justify-center min-w-[100px] shadow-md border border-gray-700 transition-all duration-300 ${lockedChords[index] ? 'border-indigo-500 ring-2 ring-indigo-500/50' : ''}` },
-             React.createElement('button', { onClick: () => onToggleLock(index), title: lockedChords[index] ? 'Desbloquear Acorde' : 'Bloquear Acorde', className: "absolute top-2 right-2 text-gray-500 hover:text-white transition-colors" },
-                lockedChords[index] ?
-                React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-5 w-5 text-indigo-400", viewBox: "0 0 20 20", fill: "currentColor" }, React.createElement('path', { fillRule: "evenodd", d: "M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z", clipRule: "evenodd" })) :
-                React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-5 w-5", viewBox: "0 0 20 20", fill: "currentColor" }, React.createElement('path', { d: "M10 3.5A3.5 3.5 0 006.5 7v2.5a.75.75 0 001.5 0V7A2 2 0 0110 5a2 2 0 012 2v1.5a.75.75 0 001.5 0V7A3.5 3.5 0 0010 3.5zM4 9.75A.75.75 0 014.75 9h10.5a.75.75 0 010 1.5H4.75A.75.75 0 014 9.75zM4.5 12a2.5 2.5 0 00-2.5 2.5v1A2.5 2.5 0 004.5 18h11a2.5 2.5 0 002.5-2.5v-1a2.5 2.5 0 00-2.5-2.5h-11z"}))
-             ),
-            React.createElement('p', { className: "text-2xl font-mono text-green-300 tracking-wider" }, item.chord),
-            React.createElement('p', { className: "text-lg font-mono text-gray-400" }, item.degree),
-            React.createElement('p', { className: "text-sm font-mono text-indigo-300 mt-1" }, item.notes)
-          )
-        )
-      )
+      renderChordsWithStructure()
     ),
     React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-3 gap-6 mb-6" },
       React.createElement('div', { className: "bg-gray-800/50 border border-gray-700 rounded-lg p-6 flex flex-col" },
@@ -843,7 +895,8 @@ function App() {
   const [musicKey, setMusicKey] = useState(MUSIC_KEYS[0]);
   const [musicScale, setMusicScale] = useState(MUSIC_SCALES[0]);
   const [bpm, setBpm] = useState(120);
-  const [numChords, setNumChords] = useState(4);
+  const [songStructure, setSongStructure] = useState('ABAB');
+  const [chordsPerSection, setChordsPerSection] = useState({ A: 4, B: 4 });
   const [chordDuration, setChordDuration] = useState('1');
   const [voiceLeading, setVoiceLeading] = useState('smooth');
   const [styleModifiers, setStyleModifiers] = useState([]);
@@ -890,16 +943,30 @@ function App() {
       musicKey: setMusicKey,
       musicScale: setMusicScale,
       bpm: setBpm,
-      numChords: setNumChords,
       chordDuration: setChordDuration,
       voiceLeading: setVoiceLeading,
       emotionalContext: setEmotionalContext,
       harmonicReference: setHarmonicReference,
       rhythmicReference: setRhythmicReference,
       sonicReference: setSonicReference,
+      chordsPerSection: setChordsPerSection,
     };
-    const setter = setters[param];
-    if (setter) setter(value);
+    
+    if (param === 'songStructure') {
+        const sanitizedValue = value.replace(/[^A-Ha-h]/g, '').toUpperCase();
+        setSongStructure(sanitizedValue);
+        const uniqueSections = [...new Set(sanitizedValue.split(''))];
+        setChordsPerSection(prev => {
+            const newChordsPerSection = {};
+            uniqueSections.forEach(section => {
+                newChordsPerSection[section] = prev[section] || 4; // Default to 4 for new sections
+            });
+            return newChordsPerSection;
+        });
+    } else {
+        const setter = setters[param];
+        if (setter) setter(value);
+    }
   }, []);
   
   const handleNext = () => setCurrentStep(prev => Math.min(prev + 1, STEPS.length - 1));
@@ -911,7 +978,8 @@ function App() {
     setMusicKey(MUSIC_KEYS[0]);
     setMusicScale(MUSIC_SCALES[0]);
     setBpm(120);
-    setNumChords(4);
+    setSongStructure('ABAB');
+    setChordsPerSection({ A: 4, B: 4 });
     setChordDuration('1');
     setVoiceLeading('smooth');
     setStyleModifiers([]);
@@ -937,7 +1005,7 @@ function App() {
     const emotionNames = selectedEmotions.map(e => e.name);
     const keyAndScale = `${musicKey} ${musicScale}`;
     try {
-      const generatedResult = await generateChordProgression(emotionNames, keyAndScale, bpm, numChords, styleModifiers, emotionalContext, harmonicReference, rhythmicReference, sonicReference, voiceLeading);
+      const generatedResult = await generateChordProgression(emotionNames, keyAndScale, bpm, songStructure, chordsPerSection, styleModifiers, emotionalContext, harmonicReference, rhythmicReference, sonicReference, voiceLeading);
       setResult(generatedResult);
       setLockedChords(new Array(generatedResult.progression.length).fill(false));
     } catch (e) {
@@ -955,7 +1023,7 @@ function App() {
       const keyAndScale = `${musicKey} ${musicScale}`;
       try {
           const regenerationResult = await generateChordProgression(
-              emotionNames, keyAndScale, bpm, result.progression.length, styleModifiers, emotionalContext, harmonicReference, rhythmicReference, sonicReference, voiceLeading,
+              emotionNames, keyAndScale, bpm, songStructure, chordsPerSection, styleModifiers, emotionalContext, harmonicReference, rhythmicReference, sonicReference, voiceLeading,
               {
                   currentProgression: result.progression,
                   lockedIndices,
@@ -1006,9 +1074,9 @@ function App() {
       case 0:
         return React.createElement(EmotionSelector, { selectedEmotions, onToggleEmotion: handleSelectEmotion, onReorderEmotions: setSelectedEmotions, onNext: handleNext });
       case 1:
-        return React.createElement(ParametersForm, { musicKey, musicScale, bpm, numChords, chordDuration, voiceLeading, styleModifiers, emotionalContext, harmonicReference, rhythmicReference, sonicReference, onToggleModifier: handleToggleModifier, onParamChange: handleParamChange, onBack: handleBack, onGenerate: handleGenerate });
+        return React.createElement(ParametersForm, { musicKey, musicScale, bpm, songStructure, chordsPerSection, chordDuration, voiceLeading, styleModifiers, emotionalContext, harmonicReference, rhythmicReference, sonicReference, onToggleModifier: handleToggleModifier, onParamChange: handleParamChange, onBack: handleBack, onGenerate: handleGenerate });
       case 2:
-        return React.createElement(ResultDisplay, { result, isLoading, error, bpm, chordDuration, onReset: handleReset, musicKey, musicScale, onGenerateLine: handleGenerateLine, generatedLines, isGeneratingLine, lockedChords, onToggleLock: handleToggleLock, onRegenerate: handleRegenerate, isRegenerating });
+        return React.createElement(ResultDisplay, { result, isLoading, error, bpm, chordDuration, onReset: handleReset, musicKey, musicScale, songStructure, chordsPerSection, onGenerateLine: handleGenerateLine, generatedLines, isGeneratingLine, lockedChords, onToggleLock: handleToggleLock, onRegenerate: handleRegenerate, isRegenerating });
       default:
         return null;
     }
