@@ -856,7 +856,7 @@ const ResultDisplay = ({ result, isLoading, error, bpm, chordDuration, musicKey,
 const LoginScreen = ({onLoginSuccess}) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const ACCESS_KEYS = ['abrinay', 'richardlove', 'alexking', 'avalon', 'kays', 'invitado'];
+  const ACCESS_KEYS = ['abrinay', 'richardlove', 'alexking', 'avalon', 'kays', 'invitado', 'tanda'];
   const handleSubmit = (e) => {
     e.preventDefault();
     if (ACCESS_KEYS.includes(password.toLowerCase().trim())) {
@@ -1111,3 +1111,4 @@ root.render(React.createElement(React.StrictMode, null, React.createElement(App)
     </script>
 </body>
 </html>
+
